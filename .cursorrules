@@ -1,0 +1,21 @@
+This is Path Raiders — a Phaser 3 TypeScript strategy game (web + mobile).
+
+Engine: Phaser 3.
+Language: TypeScript.
+Bundler: Vite.
+Backend: Supabase.
+Factions: machines | plants | wizards.
+
+Game world: 2560x720px.
+Two horizontal lanes: Lane1 y=200, Lane2 y=520.
+Left base = Player 1 (host), attacks right.
+Right base = P2 (guest), attacks left.
+
+Unit tokens are 64x64px silhouette PNGs from public/assets/tokens/
+Spritesheets: 960x96px horizontal strip, 10 frames (idle_0-3, walk_0-5).
+
+Supabase client always imported from src/lib/supabase.ts
+gameState singleton always imported from src/lib/gameState.ts
+
+Always use Phaser scene events for cross-scene communication.
+GSD planning files are in .planning/ — reference them for context.
