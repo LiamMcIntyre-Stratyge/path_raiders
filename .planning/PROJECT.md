@@ -10,7 +10,7 @@ with deployable units, auto-attacking towers, and destructible bases.
 - Bundler: Vite (vanilla-ts template)
 - Backend: Supabase (auth + realtime + DB)
 - Deploy: Vercel (web) + Capacitor (mobile)
-- Art pipeline: rembg (background removal) → sharp + @napi-rs/canvas (tokens + spritesheets)
+
 
 ## Game World
 - World size: 2560 × 720px
