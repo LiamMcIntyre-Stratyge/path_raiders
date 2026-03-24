@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "generate:tokens": "ts-node --esm src/tools/generateTokens.ts",
+    "generate:sprites": "ts-node --esm src/tools/generateSpritesheets.ts"
   },
   "devDependencies": {
     "@types/node": "^25.5.0",
