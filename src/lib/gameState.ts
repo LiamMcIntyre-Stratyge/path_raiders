@@ -11,6 +11,9 @@ const gameState: GameStateType = {
   guestBaseHp: 1000,
   gold: 200,
   gameMode: 'topdown',
+  mapId: null,
+  hostSlot: null,
+  guestSlot: null,
 }
 
 export default gameState

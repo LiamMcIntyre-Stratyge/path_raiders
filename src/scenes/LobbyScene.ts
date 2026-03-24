@@ -311,10 +311,11 @@ export class LobbyScene extends Phaser.Scene {
       const faction = gameState.playerFaction ?? 'machines'
       gameState.role = 'host'
       gameState.roomId = 'practice-' + Date.now()
-      this.scene.start('GameScene', {
+      this.scene.start('PlacementScene', {
         roomId: gameState.roomId,
         role: 'host',
         playerFaction: faction,
+        mapId: Math.floor(Math.random() * 10),
       })
     }
 
@@ -378,13 +379,14 @@ export class LobbyScene extends Phaser.Scene {
           (payload) => {
             const updated = payload.new as { guest_id?: string; guest_faction?: string; state?: string }
             if (updated.guest_id) {
-              // Guest has joined — transition to game
+              // Guest has joined — transition to placement
               gameState.playerFaction = faction
               this.cleanupChannel()
-              this.scene.start('GameScene', {
+              this.scene.start('PlacementScene', {
                 roomId,
                 role: 'host',
                 playerFaction: faction,
+                mapId: Math.floor(Math.random() * 10),
               })
             }
           }
@@ -438,10 +440,11 @@ export class LobbyScene extends Phaser.Scene {
       gameState.playerFaction = faction
 
       this.cleanupChannel()
-      this.scene.start('GameScene', {
+      this.scene.start('PlacementScene', {
         roomId: room.id,
         role: 'guest',
         playerFaction: faction,
+        mapId: Math.floor(Math.random() * 10),
       })
     }
   }

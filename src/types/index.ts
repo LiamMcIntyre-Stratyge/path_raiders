@@ -26,4 +26,21 @@ export interface GameStateType {
   guestBaseHp: number
   gold: number
   gameMode: 'topdown' | 'portrait'
+  mapId: number | null
+  hostSlot: number | null   // 0 | 1 | 2
+  guestSlot: number | null  // 0 | 1 | 2
+}
+
+export type TerrainType = 'open'|'path'|'forest'|'rock'|'water'|'lava'|'sand'|'ruins'|'cross'|'bridge'
+export type OverlayType = 'tunnel'|'dead_end'|'wall'|'break_mach'|'break_plant'|'break_wiz'|'base_zone'|null
+
+export interface MapDef {
+  id: number
+  name: string
+  faction: string
+  factionColor: string
+  paths: number
+  desc: string
+  base: TerrainType[][]
+  over: (OverlayType)[][]
 }
