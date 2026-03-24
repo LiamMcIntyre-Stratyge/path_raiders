@@ -239,6 +239,23 @@ export class LobbyScene extends Phaser.Scene {
             <div style="font-family:'Palatino Linotype',Palatino,serif;font-size:28px;color:${T.gold};letter-spacing:2px;">FIND A MATCH</div>
           </div>
 
+          <!-- Practice shortcut -->
+          <div style="margin-bottom:16px;text-align:center;">
+            <button class="pr-btn pr-btn-gold" id="rc-practice"
+              style="width:100%;padding:14px;font-size:13px;letter-spacing:3px;">
+              ⚔ PRACTICE MODE — PLAY NOW (SOLO)
+            </button>
+            <div style="font-family:${T.mono};font-size:9px;color:${T.textDim};letter-spacing:1px;margin-top:6px;">
+              No opponent required · Test the battlefield
+            </div>
+          </div>
+
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
+            <div style="flex:1;height:1px;background:${T.borderMid};"></div>
+            <div style="font-family:${T.mono};font-size:9px;color:${T.textDim};letter-spacing:2px;">OR MULTIPLAYER</div>
+            <div style="flex:1;height:1px;background:${T.borderMid};"></div>
+          </div>
+
           <!-- Two option panels -->
           <div style="display:flex;gap:16px;margin-bottom:20px;">
 
@@ -287,6 +304,18 @@ export class LobbyScene extends Phaser.Scene {
     ;(document.getElementById('rc-back') as HTMLButtonElement).onclick = () => {
       this.cleanupChannel()
       this.showLobby()
+    }
+
+    // ── Practice Mode (solo, no Supabase room needed) ─────────────────────────
+    ;(document.getElementById('rc-practice') as HTMLButtonElement).onclick = () => {
+      const faction = gameState.playerFaction ?? 'machines'
+      gameState.role = 'host'
+      gameState.roomId = 'practice-' + Date.now()
+      this.scene.start('GameScene', {
+        roomId: gameState.roomId,
+        role: 'host',
+        playerFaction: faction,
+      })
     }
 
     // Force uppercase on code input
