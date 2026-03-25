@@ -1,15 +1,23 @@
 import Phaser from 'phaser'
 import gameState from '../lib/gameState'
+import { supabase } from '../lib/supabase'
 import { UNITS } from '../units/UnitData'
 import { Unit, COMBAT_RANGE, BASE_REACH_DMG } from '../units/Unit'
-import type { Faction } from '../types'
+import { findPath, canBreakWall, type Cell } from '../lib/pathfinder'
+import type { Faction, OverlayType, MapDef } from '../types'
 import {
   MAPS, COLS, ROWS, CELL, WORLD_W, WORLD_H,
   BASE_SLOTS, HOST_ROWS, GUEST_ROWS,
   slotWorldX, hostSpawnY, guestSpawnY,
   TERRAIN_COLOR, OVERLAY_COLOR,
 } from '../maps/MapData'
-import type { MapDef } from '../types'
+import type { RealtimeChannel } from '@supabase/supabase-js'
+
+// ─── Wall HP ─────────────────────────────────────────────────────────────────
+const WALL_MAX_HP: Partial<Record<string, number>> = {
+  wall: 250, break_mach: 200, break_plant: 200, break_wiz: 200,
+}
+const WALL_OVERLAYS = new Set(['wall', 'break_mach', 'break_plant', 'break_wiz'])
 
 // ─── Layout constants ─────────────────────────────────────────────────────────
 const MAP_ZOOM    = 0.85
@@ -82,6 +90,9 @@ export class GameScene extends Phaser.Scene {
   private aiTimer    = 0
   private aiInterval = 6000  // ms between AI unit spawns
 
+  // Game over
+  private gameOver = false
+
   // Selected deploy unit
   private selectedUnit: string | null = null
 
@@ -89,6 +100,15 @@ export class GameScene extends Phaser.Scene {
   private mapDef: MapDef | null = null
   private hostSlot  = 0
   private guestSlot = 0
+
+  // Mutable overlay (walls can be broken)
+  private mutableOver: (OverlayType)[][] = []
+  // Wall HP per cell: "row,col" → current HP
+  private wallHP = new Map<string, number>()
+  // Wall graphics layer (redrawn on wall change)
+  private wallGfx!: Phaser.GameObjects.Graphics
+  // Multiplayer channel
+  private channel: RealtimeChannel | null = null
 
   constructor() { super({ key: 'GameScene' }) }
 
@@ -111,12 +131,16 @@ export class GameScene extends Phaser.Scene {
     this.gold       = gameState.gold
     this.timeLeft   = 180
     this.paused     = false
+    this.gameOver   = false
     this.hostBaseHP = 1000
     this.guestBaseHP= 1000
     this.hostUnits  = []
     this.guestUnits = []
     this.towers     = []
     this.aiTimer    = 0
+    this.mutableOver = []
+    this.wallHP      = new Map()
+    this.channel     = null
   }
 
   create() {
@@ -126,6 +150,17 @@ export class GameScene extends Phaser.Scene {
     cam.setBounds(0, 0, WORLD_W, WORLD_H)
     cam.setZoom(MAP_ZOOM)
     cam.centerOn(WORLD_W / 2, WORLD_H / 2)
+
+    // ── Init mutable overlay + wall HP (before drawing) ──────────────────────
+    this.mutableOver = this.mapDef!.over.map(row => [...row])
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        const ov = this.mutableOver[r][c]
+        if (ov && WALL_OVERLAYS.has(ov)) {
+          this.wallHP.set(`${r},${c}`, WALL_MAX_HP[ov] ?? 200)
+        }
+      }
+    }
 
     // ── Setup towers ──────────────────────────────────────────────────────────
     const TOWER_RANGE = 6 * CELL   // 216px
@@ -146,15 +181,18 @@ export class GameScene extends Phaser.Scene {
     this.drawMapGrid()
     this.drawBasePlacements()
     this.drawTowers()
+    this.wallGfx = this.add.graphics().setDepth(4)
+    this.drawWallOverlays()
 
     // ── Input ─────────────────────────────────────────────────────────────────
     this.setupInput()
 
     // ── HUD ───────────────────────────────────────────────────────────────────
     this.buildHUD()
+    this.setupChannel()
 
-    this.events.on('shutdown', () => this.destroyHUD())
-    this.events.on('destroy',  () => this.destroyHUD())
+    this.events.on('shutdown', () => { this.destroyHUD(); this.teardownChannel() })
+    this.events.on('destroy',  () => { this.destroyHUD(); this.teardownChannel() })
   }
 
   // ─── Map rendering ──────────────────────────────────────────────────────────
@@ -177,8 +215,8 @@ export class GameScene extends Phaser.Scene {
         g.fillStyle(tc.bg, 1)
         g.fillRect(px, py, CELL, CELL)
 
-        // Overlay tint
-        if (overlay && overlay !== null) {
+        // Overlay tint (walls drawn separately in wallGfx so they can break)
+        if (overlay && overlay !== null && !WALL_OVERLAYS.has(overlay)) {
           const oc = OVERLAY_COLOR[overlay as Exclude<typeof overlay, null>]
           if (oc) {
             g.fillStyle(oc.bg, 0.7)
@@ -322,8 +360,17 @@ export class GameScene extends Phaser.Scene {
     const spawnY = role === 'host' ? hostSpawnY() : guestSpawnY()
 
     const unit = new Unit(this, spawnX, spawnY, def, nearestSlot, dir)
+    this.assignPath(unit)
     if (role === 'host') this.hostUnits.push(unit)
     else                 this.guestUnits.push(unit)
+
+    // Broadcast to opponent
+    if (!gameState.roomId?.startsWith('practice-') && this.channel) {
+      void this.channel.send({
+        type: 'broadcast', event: 'deploy',
+        payload: { unitId: def.id, slot: nearestSlot, role: role as string },
+      })
+    }
 
     // Deselect
     this.selectedUnit = null
@@ -333,7 +380,7 @@ export class GameScene extends Phaser.Scene {
   // ─── Update ─────────────────────────────────────────────────────────────────
 
   update(_t: number, dt: number) {
-    if (this.paused) return
+    if (this.paused || this.gameOver) return
 
     this.updateGold(dt)
     this.updateTimer(dt)
@@ -364,6 +411,11 @@ export class GameScene extends Phaser.Scene {
       const s = Math.floor(this.timeLeft % 60)
       this.timerEl.textContent = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
     }
+    if (this.timeLeft <= 0) {
+      if (this.hostBaseHP > this.guestBaseHP)      this.triggerGameOver('host')
+      else if (this.guestBaseHP > this.hostBaseHP) this.triggerGameOver('guest')
+      else                                          this.triggerGameOver('tie')
+    }
   }
 
   private updateAI(dt: number) {
@@ -388,6 +440,7 @@ export class GameScene extends Phaser.Scene {
     const spawnY = role === 'host' ? guestSpawnY() : hostSpawnY()
 
     const unit = new Unit(this, spawnX, spawnY, def, slotIdx, aiDir)
+    this.assignPath(unit)
     if (role === 'host') this.guestUnits.push(unit)
     else                 this.hostUnits.push(unit)
   }
@@ -397,18 +450,26 @@ export class GameScene extends Phaser.Scene {
       for (const unit of movers) {
         if (!unit.active || unit.isDead()) continue
 
-        // Find nearest opposing unit in same slot within combat range on Y axis
+        // ── Wall attack ──────────────────────────────────────────────────────
+        if (unit.wallTarget) {
+          const [wr, wc] = unit.wallTarget
+          if (!this.wallHP.has(`${wr},${wc}`)) {
+            unit.wallTarget = null
+            this.recomputeUnitPath(unit)
+          } else {
+            unit.attackCd -= dt
+            if (unit.attackCd <= 0) {
+              unit.attackCd = unit.attackRate
+              this.damageWall(wr, wc, unit.def.dmg)
+            }
+          }
+          continue
+        }
+
+        // ── Unit combat ──────────────────────────────────────────────────────
         const blocker = enemies
-          .filter((e) =>
-            e.active && !e.isDead() &&
-            e.laneSlot === unit.laneSlot &&
-            (unit.dir === -1
-              // host unit moving up: enemy must be above (lower y) and within range
-              ? e.y < unit.y && unit.y - e.y < COMBAT_RANGE
-              // guest unit moving down: enemy must be below (higher y) and within range
-              : e.y > unit.y && e.y - unit.y < COMBAT_RANGE),
-          )
-          .sort((a, b) => Math.abs(a.y - unit.y) - Math.abs(b.y - unit.y))[0]
+          .filter(e => e.active && !e.isDead() && Math.hypot(e.x - unit.x, e.y - unit.y) < COMBAT_RANGE)
+          .sort((a, b) => Math.hypot(a.x - unit.x, a.y - unit.y) - Math.hypot(b.x - unit.x, b.y - unit.y))[0]
 
         if (blocker) {
           unit.attackCd -= dt
@@ -416,21 +477,32 @@ export class GameScene extends Phaser.Scene {
             unit.attackCd = unit.attackRate
             blocker.takeDamage(unit.def.dmg)
           }
-        } else {
-          // Advance — check if unit reached the enemy base
-          unit.advance(dt)
-
-          // Host unit (dir=-1, moving up) reaches guest base when y <= row 1 * CELL
-          if (unit.dir === -1 && unit.y <= GUEST_ROWS[1] * CELL) {
-            this.damageBase('guest', BASE_REACH_DMG)
-            unit.takeDamage(9999)
-          }
-          // Guest unit (dir=+1, moving down) reaches host base when y >= row 14 * CELL
-          else if (unit.dir === 1 && unit.y >= HOST_ROWS[0] * CELL) {
-            this.damageBase('host', BASE_REACH_DMG)
-            unit.takeDamage(9999)
-          }
+          continue
         }
+
+        // ── Path movement ────────────────────────────────────────────────────
+        if (unit.isAtGoal()) {
+          const side = unit.dir === -1 ? 'guest' : 'host'
+          this.damageBase(side, BASE_REACH_DMG)
+          unit.takeDamage(9999)
+          continue
+        }
+
+        // Check if next waypoint is a wall that needs breaking
+        const wp  = unit.waypoints[unit.wpIdx]
+        const wpR = Math.floor(wp.y / CELL)
+        const wpC = Math.floor(wp.x / CELL)
+        const ov  = this.mutableOver[wpR]?.[wpC]
+        if (ov && WALL_OVERLAYS.has(ov)) {
+          if (canBreakWall(ov as OverlayType, unit.def.faction)) {
+            unit.wallTarget = [wpR, wpC]
+          }
+          // Wrong faction — unit waits (pathfinder should have routed around)
+          continue
+        }
+
+        const arrived = unit.moveStep(dt)
+        if (arrived) unit.wpIdx++
       }
     }
 
@@ -446,12 +518,11 @@ export class GameScene extends Phaser.Scene {
       // Host-side tower attacks guest units; guest-side tower attacks host units
       const targets = tower.isHostSide ? this.guestUnits : this.hostUnits
       const inRange  = targets
-        .filter((u) =>
-          u.active && !u.isDead() &&
-          u.laneSlot === tower.slotIdx &&
-          Math.abs(u.y - tower.cy) <= tower.range,
-        )
-        .sort((a, b) => Math.abs(a.y - tower.cy) - Math.abs(b.y - tower.cy))
+        .filter((u) => u.active && !u.isDead() &&
+          Math.hypot(u.x - tower.cx, u.y - tower.cy) <= tower.range)
+        .sort((a, b) =>
+          Math.hypot(a.x - tower.cx, a.y - tower.cy) -
+          Math.hypot(b.x - tower.cx, b.y - tower.cy))
 
       if (inRange.length === 0) continue
       inRange[0].takeDamage(tower.dmg)
@@ -460,14 +531,293 @@ export class GameScene extends Phaser.Scene {
   }
 
   private damageBase(side: 'host' | 'guest', amount: number) {
+    if (this.gameOver) return
     if (side === 'host') {
       this.hostBaseHP = Math.max(0, this.hostBaseHP - amount)
       gameState.hostBaseHp = this.hostBaseHP
       if (this.hostHPEl) this.hostHPEl.textContent = `${this.hostBaseHP} / 1000`
+      this.broadcastBaseHP(side, this.hostBaseHP)
+      if (this.hostBaseHP <= 0) this.triggerGameOver('guest')
     } else {
       this.guestBaseHP = Math.max(0, this.guestBaseHP - amount)
       gameState.guestBaseHp = this.guestBaseHP
       if (this.guestHPEl) this.guestHPEl.textContent = `${this.guestBaseHP} / 1000`
+      this.broadcastBaseHP(side, this.guestBaseHP)
+      if (this.guestBaseHP <= 0) this.triggerGameOver('host')
+    }
+  }
+
+  private broadcastBaseHP(side: 'host' | 'guest', hp: number) {
+    if (!gameState.roomId?.startsWith('practice-') && this.channel) {
+      void this.channel.send({ type: 'broadcast', event: 'base_hp', payload: { side, hp } })
+    }
+  }
+
+  // ─── Game Over ──────────────────────────────────────────────────────────────
+
+  private triggerGameOver(winner: 'host' | 'guest' | 'tie') {
+    if (this.gameOver) return
+    this.gameOver = true
+    this.scene.pause()
+    if (!gameState.roomId?.startsWith('practice-') && this.channel) {
+      void this.channel.send({ type: 'broadcast', event: 'game_over', payload: { winner } })
+    }
+
+    const role      = gameState.role ?? 'host'
+    const playerWon = winner === role
+    const isTie     = winner === 'tie'
+
+    if (!gameState.roomId?.startsWith('practice-')) {
+      void this.recordResult(playerWon ? 'win' : isTie ? 'tie' : 'loss')
+    }
+
+    this.showResultOverlay(playerWon, isTie, winner)
+  }
+
+  private async recordResult(result: 'win' | 'loss' | 'tie') {
+    if (!gameState.userId) return
+    const col = result === 'win' ? 'wins' : result === 'loss' ? 'losses' : null
+    if (!col) return
+    const { data } = await supabase
+      .from('profiles')
+      .select(col)
+      .eq('id', gameState.userId)
+      .single<Record<string, number>>()
+    if (data) {
+      await supabase
+        .from('profiles')
+        .update({ [col]: (data[col] ?? 0) + 1 })
+        .eq('id', gameState.userId)
+    }
+  }
+
+  private showResultOverlay(won: boolean, tie: boolean, _winner: 'host' | 'guest' | 'tie') {
+    const mapName = this.mapDef?.name ?? ''
+    const role    = gameState.role ?? 'host'
+    const myHP    = role === 'host' ? this.hostBaseHP  : this.guestBaseHP
+    const oppHP   = role === 'host' ? this.guestBaseHP : this.hostBaseHP
+
+    let title: string, subtitle: string, glowColor: string, bgGrad: string
+    if (tie) {
+      title     = 'DRAW'
+      subtitle  = 'Both bases survived — the battle ends in a tie.'
+      glowColor = '#9090ff'
+      bgGrad    = 'linear-gradient(160deg,#2a2a4a,#1a1a2e)'
+    } else if (won) {
+      title     = 'VICTORY!'
+      subtitle  = 'The enemy base has fallen. Glory to your faction!'
+      glowColor = '#f0c050'
+      bgGrad    = 'linear-gradient(160deg,#3a2808,#1a0800)'
+    } else {
+      title     = 'DEFEATED'
+      subtitle  = 'Your base was destroyed. Rally and fight again!'
+      glowColor = '#d04040'
+      bgGrad    = 'linear-gradient(160deg,#3a0808,#1a0000)'
+    }
+
+    const overlay = document.createElement('div')
+    overlay.id    = 'gh-result'
+    overlay.innerHTML = `
+<style>
+#gh-result{
+  position:fixed;inset:0;z-index:200;display:flex;align-items:center;justify-content:center;
+  background:rgba(0,0,0,0.72);backdrop-filter:blur(3px);
+  font-family:'Nunito','Lilita One',sans-serif;
+}
+#gh-res-box{
+  background:${bgGrad};border:3px solid ${glowColor};border-radius:18px;
+  box-shadow:0 0 40px ${glowColor}55,0 6px 30px rgba(0,0,0,0.7);
+  padding:36px 48px;text-align:center;min-width:320px;max-width:480px;
+  animation:resIn .4s cubic-bezier(.34,1.56,.64,1) both;
+}
+@keyframes resIn{from{transform:scale(.6) translateY(40px);opacity:0}to{transform:scale(1) translateY(0);opacity:1}}
+#gh-res-title{
+  font-family:'Lilita One',cursive;font-size:52px;letter-spacing:3px;
+  color:${glowColor};text-shadow:0 0 20px ${glowColor}99,2px 2px 0 rgba(0,0,0,0.5);
+  margin-bottom:8px;
+}
+#gh-res-sub{font-size:13px;color:rgba(255,255,255,0.65);margin-bottom:20px;letter-spacing:.5px;}
+#gh-res-map{font-family:'Courier New',monospace;font-size:9px;color:rgba(255,255,255,0.3);letter-spacing:2px;margin-bottom:24px;}
+#gh-res-stats{
+  display:flex;justify-content:center;gap:24px;margin-bottom:28px;
+}
+.res-stat{background:rgba(0,0,0,0.35);border:1px solid rgba(255,255,255,0.12);border-radius:10px;padding:10px 18px;}
+.rs-label{font-size:8px;color:rgba(255,255,255,0.4);letter-spacing:2px;margin-bottom:4px;}
+.rs-val{font-family:'Lilita One',cursive;font-size:18px;color:#fff;}
+#gh-res-btns{display:flex;gap:12px;justify-content:center;}
+.res-btn{
+  font-family:'Lilita One',cursive;font-size:13px;padding:10px 24px;border-radius:10px;
+  border:2px solid;cursor:pointer;letter-spacing:.5px;box-shadow:0 4px 0 rgba(0,0,0,0.4);
+  transition:transform .1s,box-shadow .1s;
+}
+.res-btn:hover{transform:translateY(-2px);box-shadow:0 6px 0 rgba(0,0,0,0.4);}
+.res-btn:active{transform:translateY(2px);box-shadow:0 2px 0 rgba(0,0,0,0.4);}
+#res-btn-again{background:linear-gradient(180deg,#f0c050,#c08020);border-color:#ffe090;color:#3a1800;}
+#res-btn-lobby{background:linear-gradient(180deg,#4060a0,#203060);border-color:#8090d0;color:#ddeeff;}
+</style>
+<div id="gh-res-box">
+  <div id="gh-res-title">${title}</div>
+  <div id="gh-res-sub">${subtitle}</div>
+  <div id="gh-res-map">&#128506; ${mapName.toUpperCase()}</div>
+  <div id="gh-res-stats">
+    <div class="res-stat">
+      <div class="rs-label">YOUR BASE</div>
+      <div class="rs-val" style="color:${won && !tie ? '#44ee44' : tie ? '#aaaaff' : '#ee4444'}">${myHP}</div>
+    </div>
+    <div class="res-stat">
+      <div class="rs-label">ENEMY BASE</div>
+      <div class="rs-val">${oppHP}</div>
+    </div>
+  </div>
+  <div id="gh-res-btns">
+    <button class="res-btn" id="res-btn-again">&#9654; PLAY AGAIN</button>
+    <button class="res-btn" id="res-btn-lobby">&#8592; LOBBY</button>
+  </div>
+</div>`
+
+    document.body.appendChild(overlay)
+
+    document.getElementById('res-btn-again')?.addEventListener('click', () => {
+      overlay.remove()
+      this.scene.stop()
+      this.scene.start('PlacementScene', {
+        roomId:         gameState.roomId,
+        role:           gameState.role,
+        playerFaction:  gameState.playerFaction,
+        mapId:          Math.floor(Math.random() * 10),
+      })
+    })
+
+    document.getElementById('res-btn-lobby')?.addEventListener('click', () => {
+      overlay.remove()
+      this.scene.stop()
+      this.scene.start('LobbyScene')
+    })
+  }
+
+  // ─── Path assignment ────────────────────────────────────────────────────────
+
+  private assignPath(unit: Unit) {
+    if (!this.mapDef) return
+    const startR = Math.max(0, Math.min(ROWS - 1, Math.floor(unit.y / CELL)))
+    const startC = Math.max(0, Math.min(COLS - 1, Math.floor(unit.x / CELL)))
+    const targetSlot = unit.dir === -1 ? this.guestSlot : this.hostSlot
+    const targetRows = unit.dir === -1 ? GUEST_ROWS : HOST_ROWS
+    const goals: Cell[] = []
+    for (let r = targetRows[0]; r <= targetRows[1]; r++)
+      for (let c = BASE_SLOTS[targetSlot].cols[0]; c <= BASE_SLOTS[targetSlot].cols[1]; c++)
+        goals.push([r, c])
+    const cellPath = findPath(startR, startC, goals, this.mapDef.base, this.mutableOver, unit.def.faction)
+    unit.setWaypoints(cellPath.map(([r, c]) => ({ x: c * CELL + CELL / 2, y: r * CELL + CELL / 2 })))
+  }
+
+  private recomputeUnitPath(unit: Unit) {
+    if (!unit.isDead()) this.assignPath(unit)
+  }
+
+  // ─── Wall system ────────────────────────────────────────────────────────────
+
+  private damageWall(r: number, c: number, amount: number) {
+    const key = `${r},${c}`
+    const hp = this.wallHP.get(key)
+    if (hp === undefined) return
+    const newHp = Math.max(0, hp - amount)
+    this.wallHP.set(key, newHp)
+    this.drawWallOverlays()
+    if (newHp <= 0) this.breakWall(r, c)
+  }
+
+  private breakWall(r: number, c: number, broadcast = true) {
+    const key = `${r},${c}`
+    this.wallHP.delete(key)
+    this.mutableOver[r][c] = null
+    this.drawWallOverlays()
+    if (broadcast && !gameState.roomId?.startsWith('practice-') && this.channel) {
+      void this.channel.send({ type: 'broadcast', event: 'wall_break', payload: { row: r, col: c } })
+    }
+    for (const unit of [...this.hostUnits, ...this.guestUnits])
+      this.recomputeUnitPath(unit)
+  }
+
+  private drawWallOverlays() {
+    this.wallGfx.clear()
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        const ov = this.mutableOver[r][c]
+        if (!ov || !WALL_OVERLAYS.has(ov)) continue
+        const oc = OVERLAY_COLOR[ov as Exclude<OverlayType, null>]
+        if (!oc) continue
+        const px = c * CELL, py = r * CELL
+        this.wallGfx.fillStyle(oc.bg, 0.9)
+        this.wallGfx.fillRect(px, py, CELL, CELL)
+        this.wallGfx.lineStyle(2, oc.border, 1)
+        this.wallGfx.strokeRect(px + 1, py + 1, CELL - 2, CELL - 2)
+      }
+    }
+    // HP bars for damaged walls
+    for (const [key, hp] of this.wallHP) {
+      const [r, c] = key.split(',').map(Number)
+      const ov = this.mutableOver[r][c]
+      const maxHp = ov ? WALL_MAX_HP[ov] : undefined
+      if (!maxHp || hp >= maxHp) continue
+      const pct = hp / maxHp
+      const px = c * CELL + 2, py = r * CELL + CELL - 9
+      const w = CELL - 4, h = 5
+      this.wallGfx.fillStyle(0x000000, 0.8)
+      this.wallGfx.fillRect(px - 1, py - 1, w + 2, h + 2)
+      const color = pct > 0.6 ? 0x44dd44 : pct > 0.3 ? 0xddaa22 : 0xdd3322
+      this.wallGfx.fillStyle(color)
+      this.wallGfx.fillRect(px, py, Math.round(w * pct), h)
+    }
+  }
+
+  // ─── Multiplayer channel ─────────────────────────────────────────────────────
+
+  private setupChannel() {
+    if (!gameState.roomId || gameState.roomId.startsWith('practice-')) return
+    this.channel = supabase
+      .channel(`game:${gameState.roomId}`)
+      .on('broadcast', { event: 'deploy' }, ({ payload }) => {
+        const p = payload as { unitId: string; slot: number; role: string }
+        const def = UNITS.find(u => u.id === p.unitId)
+        if (!def) return
+        const dir: 1 | -1 = p.role === 'host' ? -1 : 1
+        const spawnX = slotWorldX(p.slot)
+        const spawnY = p.role === 'host' ? hostSpawnY() : guestSpawnY()
+        const unit = new Unit(this, spawnX, spawnY, def, p.slot, dir)
+        this.assignPath(unit)
+        if (p.role === 'host') this.hostUnits.push(unit)
+        else this.guestUnits.push(unit)
+      })
+      .on('broadcast', { event: 'wall_break' }, ({ payload }) => {
+        const p = payload as { row: number; col: number }
+        if (this.wallHP.has(`${p.row},${p.col}`)) this.breakWall(p.row, p.col, false)
+      })
+      .on('broadcast', { event: 'base_hp' }, ({ payload }) => {
+        const p = payload as { side: 'host' | 'guest'; hp: number }
+        if (p.side === 'host') {
+          this.hostBaseHP = p.hp
+          gameState.hostBaseHp = p.hp
+          if (this.hostHPEl) this.hostHPEl.textContent = `${p.hp} / 1000`
+          if (p.hp <= 0) this.triggerGameOver('guest')
+        } else {
+          this.guestBaseHP = p.hp
+          gameState.guestBaseHp = p.hp
+          if (this.guestHPEl) this.guestHPEl.textContent = `${p.hp} / 1000`
+          if (p.hp <= 0) this.triggerGameOver('host')
+        }
+      })
+      .on('broadcast', { event: 'game_over' }, ({ payload }) => {
+        const p = payload as { winner: 'host' | 'guest' | 'tie' }
+        this.triggerGameOver(p.winner)
+      })
+      .subscribe()
+  }
+
+  private teardownChannel() {
+    if (this.channel) {
+      void supabase.removeChannel(this.channel)
+      this.channel = null
     }
   }
 
@@ -657,5 +1007,8 @@ export class GameScene extends Phaser.Scene {
     })
   }
 
-  private destroyHUD() { this.hud?.remove() }
+  private destroyHUD() {
+    this.hud?.remove()
+    document.getElementById('gh-result')?.remove()
+  }
 }

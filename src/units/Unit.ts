@@ -5,12 +5,12 @@ const HP_W = 40
 const HP_H = 5
 const HP_Y = -32
 
-export const COMBAT_RANGE  = 52   // world px — stop and fight when this close (y-axis)
+export const COMBAT_RANGE  = 52   // world px — stop and fight when this close
 export const BASE_REACH_DMG = 60
 
 export class Unit extends Phaser.GameObjects.Container {
   readonly def: UnitDefinition
-  readonly laneSlot: number   // 0 | 1 | 2 (which base slot column)
+  readonly laneSlot: number   // 0 | 1 | 2 (spawn slot)
   readonly dir: 1 | -1        // +1 = moving down (guest), -1 = moving up (host)
 
   hp: number
@@ -21,6 +21,11 @@ export class Unit extends Phaser.GameObjects.Container {
 
   attackCd   = 0
   readonly attackRate = 900
+
+  // ── Pathfinding ─────────────────────────────────────────────────────────────
+  waypoints: { x: number; y: number }[] = []
+  wpIdx = 0
+  wallTarget: [number, number] | null = null  // [row, col] of wall being attacked
 
   constructor(
     scene: Phaser.Scene,
@@ -39,7 +44,6 @@ export class Unit extends Phaser.GameObjects.Container {
 
     const img = scene.add.image(0, 0, `${def.id}_token`)
     img.setDisplaySize(36, 36)
-    // Flip vertically for guest units moving down
     if (dir === 1) img.setFlipY(true)
     this.add(img)
 
@@ -51,8 +55,33 @@ export class Unit extends Phaser.GameObjects.Container {
     this.setDepth(10)
   }
 
-  advance(dt: number) {
-    this.y += this.def.speedPx * this.dir * (dt / 1000)
+  // Set a new waypoint list and reset position
+  setWaypoints(wps: { x: number; y: number }[]) {
+    this.waypoints = wps
+    this.wpIdx = 0
+    this.wallTarget = null
+  }
+
+  // Move one step toward waypoints[wpIdx]. Returns true when arrived at that waypoint.
+  moveStep(dt: number): boolean {
+    if (this.wpIdx >= this.waypoints.length) return false
+    const target = this.waypoints[this.wpIdx]
+    const dx = target.x - this.x
+    const dy = target.y - this.y
+    const dist = Math.hypot(dx, dy)
+    const step = this.def.speedPx * dt / 1000
+    if (dist <= step) {
+      this.x = target.x
+      this.y = target.y
+      return true
+    }
+    this.x += (dx / dist) * step
+    this.y += (dy / dist) * step
+    return false
+  }
+
+  isAtGoal(): boolean {
+    return this.wpIdx >= this.waypoints.length
   }
 
   takeDamage(amount: number): boolean {
