@@ -488,6 +488,12 @@ export class GameScene extends Phaser.Scene {
 
         // ── Path movement ────────────────────────────────────────────────────
         if (unit.isAtGoal()) {
+          if (unit.waypoints.length === 0) {
+            // No path found yet — retry next frame
+            this.recomputeUnitPath(unit)
+            continue
+          }
+          // Legitimately reached enemy base
           const side = unit.dir === -1 ? 'guest' : 'host'
           this.damageBase(side, BASE_REACH_DMG)
           unit.takeDamage(9999)

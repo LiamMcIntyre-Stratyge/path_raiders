@@ -5,14 +5,19 @@ export type Cell = [number, number]  // [row, col]
 
 const WALKABLE_TERRAIN = new Set<TerrainType>(['path', 'bridge', 'cross'])
 
+// Rows that units can traverse freely (base spawn / arrival zones)
+const BASE_ROWS = new Set([0, 1, 14, 15])
+
 export function isWalkable(
   r: number, c: number,
   base: TerrainType[][],
   over: (OverlayType)[][],
 ): boolean {
   const ov = over[r][c]
-  if (ov === 'base_zone') return true
   if (ov === 'wall' || ov === 'break_mach' || ov === 'break_plant' || ov === 'break_wiz') return false
+  // Base rows are open corridors — all slots connect to the main path network here
+  if (BASE_ROWS.has(r)) return true
+  if (ov === 'base_zone') return true
   return WALKABLE_TERRAIN.has(base[r][c])
 }
 
