@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase'
 import { UNITS } from '../units/UnitData'
 import { Unit, COMBAT_RANGE, BASE_REACH_DMG } from '../units/Unit'
 import { findPath, canBreakWall, type Cell } from '../lib/pathfinder'
+import { audio } from '../lib/audio'
 import type { Faction, OverlayType, MapDef } from '../types'
 import {
   MAPS, COLS, ROWS, CELL, WORLD_W, WORLD_H,
@@ -361,6 +362,8 @@ export class GameScene extends Phaser.Scene {
 
     const unit = new Unit(this, spawnX, spawnY, def, nearestSlot, dir)
     this.assignPath(unit)
+    unit.popIn()
+    audio.playDeploy()
     if (role === 'host') this.hostUnits.push(unit)
     else                 this.guestUnits.push(unit)
 
@@ -441,6 +444,7 @@ export class GameScene extends Phaser.Scene {
 
     const unit = new Unit(this, spawnX, spawnY, def, slotIdx, aiDir)
     this.assignPath(unit)
+    unit.popIn()
     if (role === 'host') this.guestUnits.push(unit)
     else                 this.hostUnits.push(unit)
   }
@@ -461,6 +465,7 @@ export class GameScene extends Phaser.Scene {
             if (unit.attackCd <= 0) {
               unit.attackCd = unit.attackRate
               this.damageWall(wr, wc, unit.def.dmg)
+              audio.playWallHit()
             }
           }
           continue
@@ -476,6 +481,7 @@ export class GameScene extends Phaser.Scene {
           if (unit.attackCd <= 0) {
             unit.attackCd = unit.attackRate
             blocker.takeDamage(unit.def.dmg)
+            audio.playHit()
           }
           continue
         }
@@ -537,12 +543,14 @@ export class GameScene extends Phaser.Scene {
       gameState.hostBaseHp = this.hostBaseHP
       if (this.hostHPEl) this.hostHPEl.textContent = `${this.hostBaseHP} / 1000`
       this.broadcastBaseHP(side, this.hostBaseHP)
+      this.flashBaseHit()
       if (this.hostBaseHP <= 0) this.triggerGameOver('guest')
     } else {
       this.guestBaseHP = Math.max(0, this.guestBaseHP - amount)
       gameState.guestBaseHp = this.guestBaseHP
       if (this.guestHPEl) this.guestHPEl.textContent = `${this.guestBaseHP} / 1000`
       this.broadcastBaseHP(side, this.guestBaseHP)
+      this.flashBaseHit()
       if (this.guestBaseHP <= 0) this.triggerGameOver('host')
     }
   }
@@ -551,6 +559,18 @@ export class GameScene extends Phaser.Scene {
     if (!gameState.roomId?.startsWith('practice-') && this.channel) {
       void this.channel.send({ type: 'broadcast', event: 'base_hp', payload: { side, hp } })
     }
+  }
+
+  private flashBaseHit() {
+    audio.playBaseHit()
+    this.cameras.main.shake(220, 0.018)
+    const flash = this.add.graphics().setDepth(200).setScrollFactor(0)
+    flash.fillStyle(0xff2222, 0.35)
+    flash.fillRect(0, 0, 960, 540)
+    this.tweens.add({
+      targets: flash, alpha: 0, duration: 350,
+      onComplete: () => flash.destroy(),
+    })
   }
 
   // ─── Game Over ──────────────────────────────────────────────────────────────
@@ -566,6 +586,9 @@ export class GameScene extends Phaser.Scene {
     const role      = gameState.role ?? 'host'
     const playerWon = winner === role
     const isTie     = winner === 'tie'
+
+    if (playerWon)    audio.playVictory()
+    else if (!isTie)  audio.playDefeat()
 
     if (!gameState.roomId?.startsWith('practice-')) {
       void this.recordResult(playerWon ? 'win' : isTie ? 'tie' : 'loss')
@@ -732,6 +755,8 @@ export class GameScene extends Phaser.Scene {
     this.wallHP.delete(key)
     this.mutableOver[r][c] = null
     this.drawWallOverlays()
+    audio.playWallBreak()
+    this.cameras.main.shake(180, 0.009)
     if (broadcast && !gameState.roomId?.startsWith('practice-') && this.channel) {
       void this.channel.send({ type: 'broadcast', event: 'wall_break', payload: { row: r, col: c } })
     }
@@ -786,6 +811,7 @@ export class GameScene extends Phaser.Scene {
         const spawnY = p.role === 'host' ? hostSpawnY() : guestSpawnY()
         const unit = new Unit(this, spawnX, spawnY, def, p.slot, dir)
         this.assignPath(unit)
+        unit.popIn()
         if (p.role === 'host') this.hostUnits.push(unit)
         else this.guestUnits.push(unit)
       })

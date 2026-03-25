@@ -89,19 +89,56 @@ export class Unit extends Phaser.GameObjects.Container {
     this.hp = Math.max(0, this.hp - amount)
     this.drawHP()
     if (this.hp <= 0) { this.kill(); return true }
+    this.flashHit()
     return false
+  }
+
+  flashHit() {
+    const img = this.list[0] as Phaser.GameObjects.Image
+    if (!img) return
+    img.setTint(0xff4444)
+    this.scene.time.delayedCall(120, () => { if (img.scene) img.clearTint() })
+  }
+
+  // Pop-in animation on deploy
+  popIn() {
+    this.setScale(0)
+    this.scene.tweens.add({
+      targets: this, scaleX: 1, scaleY: 1,
+      duration: 220, ease: 'Back.Out',
+    })
   }
 
   isDead() { return this.dead }
 
   private kill() {
     this.dead = true
+    // Explosion burst
+    const g = this.scene.add.graphics().setDepth(20)
+    const ox = this.x, oy = this.y
+    const faction = this.def.faction
+    const burst   = faction === 'machines' ? 0x4499ff
+                  : faction === 'plants'   ? 0x44dd66
+                  :                          0xaa55ff
+    this.scene.tweens.add({
+      targets: { r: 4, alpha: 0.9 },
+      r: 28, alpha: 0,
+      duration: 260,
+      ease: 'Quad.Out',
+      onUpdate: (_tw, obj: { r: number; alpha: number }) => {
+        g.clear()
+        g.fillStyle(burst, obj.alpha)
+        g.fillCircle(ox, oy, obj.r)
+        g.fillStyle(0xffffff, obj.alpha * 0.6)
+        g.fillCircle(ox, oy, obj.r * 0.45)
+      },
+      onComplete: () => { g.destroy() },
+    })
+    // Fade + scale out the unit
     this.scene.tweens.add({
       targets: this,
-      alpha: 0,
-      scaleX: 1.5,
-      scaleY: 1.5,
-      duration: 280,
+      alpha: 0, scaleX: 1.4, scaleY: 1.4,
+      duration: 230,
       onComplete: () => { if (this.scene) this.destroy() },
     })
   }
