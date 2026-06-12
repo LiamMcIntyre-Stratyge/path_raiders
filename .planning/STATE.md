@@ -22,8 +22,8 @@ See: .planning/PROJECT.md (updated 2026-06-12)
 
 Phase: 9 of 14 (Backend Foundations & Integrity) — first of 6 v2.0 phases (9–14)
 Plan: — (not yet planned)
-Status: Ready to plan
-Last activity: 2026-06-12 — Roadmap created (phases 9–14, 30/30 requirements mapped)
+Status: Context gathered — ready to plan
+Last activity: 2026-06-12 — Phase 9 context gathered (4 areas discussed; CONTEXT.md written)
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -52,5 +52,9 @@ Progress: [░░░░░░░░░░] 0%
 ## Session Continuity
 
 Last session: 2026-06-12
-Stopped at: ROADMAP.md, REQUIREMENTS.md traceability, and STATE.md written for milestone v2.0.
-Resume file: None
+Stopped at: Phase 9 context gathered — decisions captured in 09-CONTEXT.md.
+Resume file: .planning/phases/09-backend-foundations-integrity/09-CONTEXT.md
+
+⚠ Open item: Phase 9 decision D-04 (email-only, no anonymous auth) overrides FND-02 and
+ROADMAP Phase 9 SC#2. Reword REQUIREMENTS.md (FND-02) + ROADMAP.md (Phase 9 Goal/SC#2)
+before planning closes, so the verifier checks against the email-only criterion.
