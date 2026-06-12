@@ -15,7 +15,7 @@ requirements below are systems/logic, and UI tasks mean *integrating* those desi
 
 ### Backend Foundations & Integrity (FND)
 - [ ] **FND-01**: Authoritative tables (wallet, inventory, upgrades, match results) are defined as committed Postgres migrations with Row Level Security so clients can read their own rows but never write authoritative ones.
-- [ ] **FND-02**: Every player — including guests — gets a persistent real account identity (Supabase anonymous auth → stable UUID), replacing collision-prone guest ids.
+- [ ] **FND-02**: Every player gets a persistent real authenticated identity via email/password sign-in; there is no anonymous/guest play; the collision-prone `'guest'` literal is removed.
 - [ ] **FND-03**: No privileged credentials ship in the client bundle (service-role key stays server-side; `.env.local` is gitignored; a CI/scan guard fails the build if a secret is bundled).
 - [ ] **FND-04**: A test harness (Vitest) runs the extracted simulation and economy logic, executable in CI, replacing today's zero automated coverage.
 - [ ] **FND-05**: Scenes access persistent data only through a typed services/API layer (`src/lib/api/`) — no scene writes directly to authoritative tables.

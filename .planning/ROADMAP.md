@@ -40,12 +40,12 @@ UI from scratch.
 ## Phase Details
 
 ### Phase 9: Backend Foundations & Integrity
-**Goal**: The Supabase security boundary is committed, reviewable, and enforced, every player has a stable real identity, no privileged secret ships in the bundle, and a test harness runs in CI.
+**Goal**: The Supabase security boundary is committed, reviewable, and enforced, every player has a stable real identity via authenticated email/password sign-in (no anonymous auth), no privileged secret ships in the bundle, and a test harness runs in CI.
 **Depends on**: Nothing (first phase of v2.0; builds on v1.0 Phase 8)
 **Requirements**: FND-01, FND-02, FND-03, FND-04, FND-05
 **Success Criteria** (what must be TRUE):
   1. The schema for authoritative tables (wallet, inventory, upgrades, match results) exists as committed `supabase/migrations` SQL with RLS so a client can read its own rows but cannot write authoritative ones (verifiable by an RLS test that a forged write is rejected).
-  2. Every player — including a brand-new guest — gets a stable real account UUID via Supabase anonymous auth, replacing the collision-prone literal `'guest'` id.
+  2. Every player gets a stable real account UUID via authenticated email/password sign-in (no anonymous auth); the literal `'guest'` id is deleted.
   3. No privileged credential is present in the built client bundle, `.env.local` is untracked (and the anon key rotated), and a CI/scan guard fails the build if a secret is bundled.
   4. A Vitest harness runs in CI with the first pure-function tests (pathfinder) green, establishing the coverage seam later phases extend.
   5. Scenes reach persistent data only through a typed `src/lib/api/` services layer — no scene issues a direct write to an authoritative table.

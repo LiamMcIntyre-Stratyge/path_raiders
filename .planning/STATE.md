@@ -55,6 +55,6 @@ Last session: 2026-06-12
 Stopped at: Phase 9 context gathered — decisions captured in 09-CONTEXT.md.
 Resume file: .planning/phases/09-backend-foundations-integrity/09-CONTEXT.md
 
-⚠ Open item: Phase 9 decision D-04 (email-only, no anonymous auth) overrides FND-02 and
-ROADMAP Phase 9 SC#2. Reword REQUIREMENTS.md (FND-02) + ROADMAP.md (Phase 9 Goal/SC#2)
-before planning closes, so the verifier checks against the email-only criterion.
+✓ Resolved 2026-06-12: Reworded REQUIREMENTS.md (FND-02) + ROADMAP.md (Phase 9 Goal/SC#2)
+to the email-only identity criterion (D-04, no anonymous auth) before planning Phase 9, so
+the verifier checks against the email-only criterion.
