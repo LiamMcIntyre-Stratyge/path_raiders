@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Persistent Game Foundations
 status: executing
-stopped_at: Completed 10-02-PLAN.md (pure src/sim/ core: types + createWorld + combat + step)
-last_updated: "2026-06-12T12:54:07Z"
-last_activity: 2026-06-12 -- Phase 10 Plan 02 executed
+stopped_at: Completed 10-03-PLAN.md (wired GameScene to the sim: UnitView split, id-reconcile, event mapping, wire protocol preserved)
+last_updated: "2026-06-12T13:03:30Z"
+last_activity: 2026-06-12 -- Phase 10 Plan 03 executed
 progress:
   total_phases: 6
   completed_phases: 1
   total_plans: 16
-  completed_plans: 8
-  percent: 20
+  completed_plans: 9
+  percent: 23
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-06-12)
 ## Current Position
 
 Phase: 10 (services-simulation-refactor) — IN PROGRESS
-Plan: 2 of 5 executed (10-01, 10-02 complete)
-Status: Ready to execute 10-03
-Last activity: 2026-06-12 -- Phase 10 Plan 02 executed
+Plan: 3 of 5 executed (10-01, 10-02, 10-03 complete)
+Status: Ready to execute 10-04
+Last activity: 2026-06-12 -- Phase 10 Plan 03 executed
 
-Progress: [██░░░░░░░░] 20% (Phase 9 complete; Phase 10 2/5 plans)
+Progress: [██░░░░░░░░] 23% (Phase 9 complete; Phase 10 3/5 plans)
 
 Open follow-ups (non-blocking, by design):
 
@@ -53,6 +53,10 @@ Open follow-ups (non-blocking, by design):
 - [Phase 10-01]: Side/faction resolution centralized into one pure src/lib/sideHelper.ts (resolveSide + opponentFaction); FC color table de-duplicated into TowerView (D-11)
 - [Phase 10-02]: Pure src/sim/ core (types/world/combat/step) — zero Phaser/Supabase/gameState imports (D-01); single step(world, inputs, dt, rng=Math.random) tick entry (D-08); injected rng with the only sim RNG being practice-AI spawning (D-06); D-07 id-tiebreak on both nearest-target sorts
 - [Phase 10-02]: COMBAT_RANGE/BASE_REACH_DMG relocated into src/sim/types.ts (Unit.ts imports Phaser; sim owns the constants now). createWorld() is a factory, not a singleton, so Vitest instantiates fresh worlds per scenario
+- [Phase 10-03]: Unit.ts split into src/units/UnitView.ts (Phaser render-half keyed by SimUnit.id: syncFrom + playDeathAnimation) — D-02; Unit.ts reduced to a constant re-export
+- [Phase 10-03]: GameScene drives the sim — update() = drain inputs → step(world,inputs,dt,Math.random) → reconcile views by id → event mapping; five updateX methods deleted (D-03/D-08)
+- [Phase 10-03]: Per-attack audio.playHit() preserved scene-side via a prevAttackCds attackCd-reset monitor (continuous-state read, not a sim event) — keeps src/sim audio-free (SC#1)
+- [Phase 10-03]: Supabase wire protocol preserved byte-for-byte (deploy/wall_break/base_hp/game_over); received deploy/wall_break → sim inputs; received base_hp overwrites world HP directly (D-04/D-12)
 
 ### Blockers
 
@@ -74,13 +78,15 @@ Open follow-ups (non-blocking, by design):
 ## Session Continuity
 
 Last session: 2026-06-12
-Stopped at: Completed 10-02-PLAN.md (pure src/sim/ core: types + createWorld + combat + step).
-Phase 10 Plan 02 of 5 done. **Next: execute 10-03** (wire GameScene to the sim: UnitView
-split, id-reconcile, event mapping, wire protocol preserved — D-02/D-03/D-04). The sim core
-is complete and unit-tested but NOT yet driving GameScene (by design — wiring is 10-03).
-Phase 11 (already context-gathered) still depends on Phase 10's read-through gameState +
-the recordResult-authority handoff (P10 D-13).
-Resume file (execution): .planning/phases/10-services-simulation-refactor/10-03-PLAN.md
+Stopped at: Completed 10-03-PLAN.md (wired GameScene to the sim: UnitView split, id-reconcile,
+event mapping, per-attack audio monitor, wire protocol preserved — D-02/D-03/D-04).
+Phase 10 Plan 03 of 5 done. **Next: execute 10-04** (gameState reduction — D-12/D-14: remove
+hostBaseHp/guestBaseHp/gold/gameMode from GameStateType + gameState; every former write site
+already reads/writes this.world). GameScene is now a thin renderer; the sim is the single
+source of truth for live battle state (SC#1 wired end-to-end, pending the Plan 05 manual
+two-session parity gate, D-16). Phase 11 (already context-gathered) still depends on Phase
+10's read-through gameState + the recordResult-authority handoff (P10 D-13).
+Resume file (execution): .planning/phases/10-services-simulation-refactor/10-04-PLAN.md
 Resume file (P11 context): .planning/phases/11-accounts-economy/11-CONTEXT.md
 
 ✓ Resolved 2026-06-12: Reworded REQUIREMENTS.md (FND-02) + ROADMAP.md (Phase 9 Goal/SC#2)
@@ -97,3 +103,4 @@ the verifier checks against the email-only criterion.
 | Phase 09-backend-foundations-integrity P04 | 15 | 3 tasks | 2 files |
 | Phase 10 P01 | 4min | 3 tasks | 4 files |
 | Phase 10 P02 | 7min | 3 tasks | 7 files |
+| Phase 10 P03 | 5min | 2 tasks | 3 files |
