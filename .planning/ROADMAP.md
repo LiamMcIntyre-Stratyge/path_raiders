@@ -31,7 +31,7 @@ UI from scratch.
 - Integer phases (9, 10, 11): Planned milestone work (continues from v1.0's Phase 8)
 - Decimal phases (e.g. 11.1): Urgent insertions (marked INSERTED)
 
-- [ ] **Phase 9: Backend Foundations & Integrity** - Committed migrations, RLS, real identity, secret-leak guard, and a test harness — make the backend reviewable and safe
+- [x] **Phase 9: Backend Foundations & Integrity** - Committed migrations, RLS, real identity, secret-leak guard, and a test harness — make the backend reviewable and safe (completed 2026-06-12)
 - [ ] **Phase 10: Services & Simulation Refactor** - Extract a typed services layer and a pure `src/sim/` battle module; behavior-preserving de-risking refactor
 - [ ] **Phase 11: Accounts & Economy** - Server-truth accounts, profiles, wallet, and unit unlocks; first real authority move on the safe non-realtime surface
 - [ ] **Phase 12: Progression & Upgrades** - Server-side level-based unit/tower upgrades that persist and feed back into battle stats
@@ -60,7 +60,7 @@ UI from scratch.
   - [x] 09-03-PLAN.md — thin src/lib/api/ seam (account/rooms/wallet) replacing direct scene table calls (FND-05)
   - [x] 09-04-PLAN.md — email-only identity: delete the 'guest' literal, require real UUID at play entry (FND-02)
   - [x] 09-05-PLAN.md — RLS forged-write/idempotency test + bundle secret-scan + CI workflow (FND-01/03/05)
-  - [ ] 09-06-PLAN.md — [BLOCKING] push committed migrations to the live Supabase project (FND-01)
+  - [x] 09-06-PLAN.md — [BLOCKING] push committed migrations to the live Supabase project (FND-01)
 
 ### Phase 10: Services & Simulation Refactor
 
@@ -146,7 +146,7 @@ Phases execute in numeric order: 9 → 10 → 11 → 12 → 13 → 14
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 9. Backend Foundations & Integrity | v2.0 | 5/6 | In Progress|  |
+| 9. Backend Foundations & Integrity | v2.0 | 6/6 | Complete   | 2026-06-12 |
 | 10. Services & Simulation Refactor | v2.0 | 0/TBD | Not started | - |
 | 11. Accounts & Economy | v2.0 | 0/TBD | Not started | - |
 | 12. Progression & Upgrades | v2.0 | 0/TBD | Not started | - |

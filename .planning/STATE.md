@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Persistent Game Foundations
-status: executing
-stopped_at: Completed 09-04-PLAN.md
-last_updated: "2026-06-12T09:13:17.939Z"
+status: phase-complete
+stopped_at: Completed Phase 09 (all 6 plans) — verified PASS
+last_updated: "2026-06-12T19:15:00.000Z"
 last_activity: 2026-06-12
 progress:
   total_phases: 6
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 6
-  completed_plans: 5
-  percent: 0
+  completed_plans: 6
+  percent: 17
 ---
 
 # Project State
@@ -25,12 +25,16 @@ See: .planning/PROJECT.md (updated 2026-06-12)
 
 ## Current Position
 
-Phase: 09 (backend-foundations-integrity) — EXECUTING
-Plan: 6 of 6
-Status: Ready to execute
+Phase: 09 (backend-foundations-integrity) — COMPLETE ✓ (verified PASS)
+Plan: 6 of 6 executed
+Status: Phase 9 done. Next: Phase 10 (`/gsd:discuss-phase 10` or `/gsd:plan-phase 10`)
 Last activity: 2026-06-12
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [█░░░░░░░░░] 17% (1/6 v2.0 phases)
+
+Open follow-ups (non-blocking, by design):
+- RLS integration test (test/rls/wallet-rls.test.ts) live-runs in CI on first push (no local Docker in dev).
+- Live prod deploy confirmed via user "pushed" sign-off; optional final Dashboard audit for auditability.
 
 ## Context
 
@@ -64,9 +68,9 @@ Progress: [░░░░░░░░░░] 0%
 
 ## Session Continuity
 
-Last session: 2026-06-12T09:13:17.934Z
-Stopped at: Completed 09-04-PLAN.md
-Resume file: None
+Last session: 2026-06-12
+Stopped at: Phase 09 complete — all 6 plans executed + verified (PASS). Backend security boundary (wallet/RLS/credit RPC) live in prod; Vitest + CI in place; api seam + email-only identity landed.
+Resume file: None — ready for Phase 10
 
 ✓ Resolved 2026-06-12: Reworded REQUIREMENTS.md (FND-02) + ROADMAP.md (Phase 9 Goal/SC#2)
 to the email-only identity criterion (D-04, no anonymous auth) before planning Phase 9, so
