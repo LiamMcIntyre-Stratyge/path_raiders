@@ -836,7 +836,9 @@ const username = esc(gameState.username ?? 'COMMANDER')
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
+
+> All three resolved during planning: opponentId ownership → 11-05 Task 1 (Phase 11 adds it defensively if Phase 10 hasn't); rooms host_id/guest_id UUID validation → 11-05 Task 1; ProfileScene vs LobbyScene panel → 11-05 Task 3 (new ProfileScene).
 
 1. **Does Phase 10 add `gameState.opponentId`?**
    - What we know: Phase 10's D-12/D-14 slims gameState to session context. The rooms row already contains both player UUIDs.
