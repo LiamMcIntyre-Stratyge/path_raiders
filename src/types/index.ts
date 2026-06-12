@@ -15,6 +15,16 @@ export interface UnitDefinition {
   starter: boolean
 }
 
+/**
+ * Session + read-through profile cache (D-14).
+ *
+ * NOT the source of truth for live battle state — gold, base HP and all other
+ * mutable battle values live on the sim `SimWorld` (D-12). The persistent
+ * profile fields below (userId, username, unlockedUnits, wins, losses) are
+ * hydrated from the `src/lib/api/account` seam; the recordResult write path
+ * stays unchanged this phase (D-13). The remaining fields are session context
+ * (roomId/role/playerFaction/mapId/slots) carried across the scene handoff.
+ */
 export interface GameStateType {
   userId: string | null  // null only before sign-in; required real UUID at every play entry (FND-02, D-05)
   username: string | null
@@ -25,10 +35,6 @@ export interface GameStateType {
   losses: number
   roomId: string | null
   role: 'host' | 'guest' | null
-  hostBaseHp: number
-  guestBaseHp: number
-  gold: number
-  gameMode: 'topdown' | 'portrait'
   mapId: number | null
   hostSlot: number | null   // 0 | 1 | 2
   guestSlot: number | null  // 0 | 1 | 2

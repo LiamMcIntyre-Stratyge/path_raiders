@@ -25,6 +25,11 @@ const WALL_MAX_HP: Partial<Record<string, number>> = {
 }
 const WALL_OVERLAYS = new Set(['wall', 'break_mach', 'break_plant', 'break_wiz'])
 
+// Starting gold for a fresh battle world (GameScene.create default). Exported so
+// pre-battle UI (e.g. the lobby resources HUD) can show it without reaching into
+// gameState — live gold lives on SimWorld once a battle starts (D-12).
+export const STARTING_GOLD = 200
+
 export interface CreateWorldOptions {
   gold?: number
   hostSlot: number
@@ -88,7 +93,7 @@ export function createWorld(opts: CreateWorldOptions): SimWorld {
   }
 
   return {
-    gold: opts.gold ?? 200,
+    gold: opts.gold ?? STARTING_GOLD,
     goldAccum: 0,
     timeLeft: 180,
     hostBaseHp: 1000,

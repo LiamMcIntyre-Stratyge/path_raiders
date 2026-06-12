@@ -2,6 +2,7 @@ import Phaser from 'phaser'
 import { supabase } from '../lib/supabase'
 import { createRoom, findRoomByCode, joinRoom } from '../lib/api/rooms'
 import gameState from '../lib/gameState'
+import { STARTING_GOLD } from '../sim/world'
 import type { Faction } from '../types'
 import type { RealtimeChannel } from '@supabase/supabase-js'
 
@@ -143,7 +144,7 @@ export class LobbyScene extends Phaser.Scene {
             </div>
             <div style="background:${T.bgCard};border:1px solid ${T.borderMid};border-radius:20px;padding:6px 14px;display:flex;align-items:center;gap:6px;">
               <span style="color:${T.gold};">⬡</span>
-              <span style="font-family:${T.mono};font-size:12px;color:${T.text};">${gameState.gold}</span>
+              <span style="font-family:${T.mono};font-size:12px;color:${T.text};">${STARTING_GOLD}</span>
             </div>
             <div style="background:${T.bgCard};border:1px solid ${T.borderMid};border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;" id="lobby-settings">⚙</div>
           </div>

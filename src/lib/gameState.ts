@@ -1,5 +1,13 @@
 import type { GameStateType } from '../types'
 
+/**
+ * Session + read-through profile cache (D-14) — NOT the live battle source.
+ *
+ * Live battle state (gold, base HP, units, towers, walls) lives on the sim
+ * `SimWorld`, which is the single source of truth (D-12). This singleton only
+ * caches the player's session context and persistent profile fields, which are
+ * hydrated from the `src/lib/api/account` seam (D-13, write path unchanged).
+ */
 const gameState: GameStateType = {
   userId: null,
   username: null,
@@ -10,10 +18,6 @@ const gameState: GameStateType = {
   losses: 0,
   roomId: null,
   role: null,
-  hostBaseHp: 1000,
-  guestBaseHp: 1000,
-  gold: 200,
-  gameMode: 'topdown',
   mapId: null,
   hostSlot: null,
   guestSlot: null,

@@ -116,7 +116,8 @@ export class GameScene extends Phaser.Scene {
     const pFac = gameState.playerFaction ?? 'machines'
     const { hostFaction, guestFaction } = resolveSide(role, pFac)
     this.world = createWorld({
-      gold:         gameState.gold,
+      // gold omitted → createWorld seeds STARTING_GOLD; the sim world owns live
+      // gold from here on (D-12). No cross-scene gold persistence is required.
       hostSlot:     this.hostSlot,
       guestSlot:    this.guestSlot,
       mapBase:      this.mapDef!.base,
