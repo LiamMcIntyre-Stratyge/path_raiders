@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Persistent Game Foundations
 status: executing
-stopped_at: "Completed 09-01: Vitest harness + pathfinder tests"
-last_updated: "2026-06-12T08:55:59.208Z"
+stopped_at: "Completed 09-03: API seam (account, rooms, wallet)"
+last_updated: "2026-06-12T09:02:13.196Z"
 last_activity: 2026-06-12
 progress:
   total_phases: 6
   completed_phases: 0
   total_plans: 6
-  completed_plans: 2
+  completed_plans: 3
   percent: 0
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-06-12)
 ## Current Position
 
 Phase: 09 (backend-foundations-integrity) — EXECUTING
-Plan: 3 of 6
+Plan: 4 of 6
 Status: Ready to execute
 Last activity: 2026-06-12
 
@@ -42,6 +42,7 @@ Progress: [░░░░░░░░░░] 0%
 - The four competitive "should-have" systems (hidden MMR, per-unit/tower upgrades, visible rank, match history) pulled into scope.
 - UI/UX and characters owned by user in Claude designs; GSD milestone integrates them, does not design them.
 - [Phase ?]: 09-01: Explicit vitest imports (no globals) to keep prod tsc scope clean; separate tsconfig.test.json for test type-checking; hand-built ROWS×COLS grids for deterministic pathfinder tests
+- [Phase ?]: Typed src/lib/api/ seam (account/rooms/wallet) wraps all scene table calls; wallet writes route exclusively through credit_wallet RPC
 
 ### Blockers
 
@@ -62,8 +63,8 @@ Progress: [░░░░░░░░░░] 0%
 
 ## Session Continuity
 
-Last session: 2026-06-12T08:55:59.204Z
-Stopped at: Completed 09-01: Vitest harness + pathfinder tests
+Last session: 2026-06-12T09:02:08.281Z
+Stopped at: Completed 09-03: API seam (account, rooms, wallet)
 Resume file: None
 
 ✓ Resolved 2026-06-12: Reworded REQUIREMENTS.md (FND-02) + ROADMAP.md (Phase 9 Goal/SC#2)
@@ -76,3 +77,4 @@ the verifier checks against the email-only criterion.
 |-------|------|----------|-------|
 | Phase 09 P01 | 15min | 3 tasks | 4 files |
 | Phase 09-backend-foundations-integrity P02 | 25 | - tasks | - files |
+| Phase 09 P03 | 25 | 3 tasks | 6 files |

@@ -19,7 +19,7 @@ requirements below are systems/logic, and UI tasks mean *integrating* those desi
 - [ ] **FND-02**: Every player gets a persistent real authenticated identity via email/password sign-in; there is no anonymous/guest play; the collision-prone `'guest'` literal is removed.
 - [ ] **FND-03**: No privileged credentials ship in the client bundle (service-role key stays server-side; `.env.local` is gitignored; a CI/scan guard fails the build if a secret is bundled).
 - [x] **FND-04**: A test harness (Vitest) runs the extracted simulation and economy logic, executable in CI, replacing today's zero automated coverage.
-- [ ] **FND-05**: Scenes access persistent data only through a typed services/API layer (`src/lib/api/`) — no scene writes directly to authoritative tables.
+- [x] **FND-05**: Scenes access persistent data only through a typed services/API layer (`src/lib/api/`) — no scene writes directly to authoritative tables.
 
 ### Accounts & Profiles (ACCT)
 
@@ -95,7 +95,7 @@ Every v2.0 requirement maps to exactly one phase. Coverage: 30/30.
 | FND-02 | Phase 9 — Backend Foundations & Integrity | Pending |
 | FND-03 | Phase 9 — Backend Foundations & Integrity | Pending |
 | FND-04 | Phase 9 — Backend Foundations & Integrity | Complete |
-| FND-05 | Phase 9 — Backend Foundations & Integrity | Pending |
+| FND-05 | Phase 9 — Backend Foundations & Integrity | Complete |
 | BATTLE-02 | Phase 10 — Services & Simulation Refactor | Pending |
 | ACCT-01 | Phase 11 — Accounts & Economy | Pending |
 | ACCT-02 | Phase 11 — Accounts & Economy | Pending |

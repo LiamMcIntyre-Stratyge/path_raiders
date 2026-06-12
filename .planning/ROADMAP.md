@@ -57,7 +57,7 @@ UI from scratch.
 
   - [x] 09-01-PLAN.md — Vitest harness (two projects) + pathfinder unit tests (FND-04)
   - [x] 09-02-PLAN.md — supabase/migrations: baseline + wallet exemplar + RLS shells + profiles tighten (FND-01)
-  - [ ] 09-03-PLAN.md — thin src/lib/api/ seam (account/rooms/wallet) replacing direct scene table calls (FND-05)
+  - [x] 09-03-PLAN.md — thin src/lib/api/ seam (account/rooms/wallet) replacing direct scene table calls (FND-05)
   - [ ] 09-04-PLAN.md — email-only identity: delete the 'guest' literal, require real UUID at play entry (FND-02)
   - [ ] 09-05-PLAN.md — RLS forged-write/idempotency test + bundle secret-scan + CI workflow (FND-01/03/05)
   - [ ] 09-06-PLAN.md — [BLOCKING] push committed migrations to the live Supabase project (FND-01)
@@ -146,7 +146,7 @@ Phases execute in numeric order: 9 → 10 → 11 → 12 → 13 → 14
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 9. Backend Foundations & Integrity | v2.0 | 2/6 | In Progress|  |
+| 9. Backend Foundations & Integrity | v2.0 | 3/6 | In Progress|  |
 | 10. Services & Simulation Refactor | v2.0 | 0/TBD | Not started | - |
 | 11. Accounts & Economy | v2.0 | 0/TBD | Not started | - |
 | 12. Progression & Upgrades | v2.0 | 0/TBD | Not started | - |
