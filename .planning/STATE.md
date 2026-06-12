@@ -69,8 +69,8 @@ Open follow-ups (non-blocking, by design):
 ## Session Continuity
 
 Last session: 2026-06-12
-Stopped at: Phase 09 complete — all 6 plans executed + verified (PASS). Backend security boundary (wallet/RLS/credit RPC) live in prod; Vitest + CI in place; api seam + email-only identity landed.
-Resume file: None — ready for Phase 10
+Stopped at: Phase 10 context gathered — 10-CONTEXT.md written (5 areas: sim purity, determinism seams, towers, gameState reduction, verification). Phase 09 complete (all 6 plans executed + verified PASS; backend boundary live, Vitest+CI, api seam, email-only identity). Next: `/gsd:plan-phase 10`.
+Resume file: .planning/phases/10-services-simulation-refactor/10-CONTEXT.md
 
 ✓ Resolved 2026-06-12: Reworded REQUIREMENTS.md (FND-02) + ROADMAP.md (Phase 9 Goal/SC#2)
 to the email-only identity criterion (D-04, no anonymous auth) before planning Phase 9, so
