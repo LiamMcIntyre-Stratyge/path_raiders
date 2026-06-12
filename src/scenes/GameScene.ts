@@ -3,22 +3,23 @@ import gameState from '../lib/gameState'
 import { supabase } from '../lib/supabase'
 import { recordMatchResult } from '../lib/api/account'
 import { UNITS } from '../units/UnitData'
-import { Unit, COMBAT_RANGE, BASE_REACH_DMG } from '../units/Unit'
-import { findPath, canBreakWall, type Cell } from '../lib/pathfinder'
-import { resolveSide, opponentFaction } from '../lib/sideHelper'
-import { TOWER_RANGE, TOWER_DMG, TOWER_CD } from '../towers/TowerData'
+import { UnitView } from '../units/UnitView'
+import { resolveSide } from '../lib/sideHelper'
 import { drawTowers as renderTowers, fac } from '../towers/TowerView'
+import { createWorld } from '../sim/world'
+import { step } from '../sim/step'
+import type { SimWorld, SimInput } from '../sim/types'
 import { audio } from '../lib/audio'
 import type { Faction, OverlayType, MapDef } from '../types'
 import {
   MAPS, COLS, ROWS, CELL, WORLD_W, WORLD_H,
   BASE_SLOTS, HOST_ROWS, GUEST_ROWS,
-  slotWorldX, hostSpawnY, guestSpawnY,
+  slotWorldX,
   TERRAIN_COLOR, OVERLAY_COLOR,
 } from '../maps/MapData'
 import type { RealtimeChannel } from '@supabase/supabase-js'
 
-// ─── Wall HP ─────────────────────────────────────────────────────────────────
+// ─── Wall HP (max-HP table — used only for the wall HP-bar render) ─────────────
 const WALL_MAX_HP: Partial<Record<string, number>> = {
   wall: 250, break_mach: 200, break_plant: 200, break_wiz: 200,
 }
@@ -30,15 +31,6 @@ const TOP_BAR_H   = 50
 const BTM_BAR_H   = 70
 const CANVAS_H    = 540
 const VIEWPORT_H  = CANVAS_H - TOP_BAR_H - BTM_BAR_H   // 420
-
-// ─── Tower definition ─────────────────────────────────────────────────────────
-interface TowerDef {
-  cx: number; cy: number
-  slotIdx: number
-  isHostSide: boolean   // true → attacks guestUnits; false → attacks hostUnits
-  range: number; dmg: number
-  cd: number; maxCd: number
-}
 
 // ─── Scene data ───────────────────────────────────────────────────────────────
 interface GameSceneData {
@@ -68,28 +60,15 @@ export class GameScene extends Phaser.Scene {
   private hostHPEl!: HTMLElement
   private guestHPEl!: HTMLElement
 
-  // Resource / round state
-  private gold      = 200
-  private timeLeft  = 180
-  private goldAccum = 0
-  private paused    = false
+  // Sim world — single source of truth for live battle state (D-12)
+  private world!: SimWorld
 
-  // Base HP
-  private hostBaseHP  = 1000
-  private guestBaseHP = 1000
+  // Render reconcile + input queue + per-attack audio monitor (D-03)
+  private unitViews = new Map<string, UnitView>()
+  private pendingInputs: SimInput[] = []
+  private prevAttackCds = new Map<string, number>()
 
-  // Units
-  private hostUnits:  Unit[] = []
-  private guestUnits: Unit[] = []
-
-  // Towers
-  private towers: TowerDef[] = []
-
-  // AI spawner (practice mode only)
-  private aiTimer    = 0
-  private aiInterval = 6000  // ms between AI unit spawns
-
-  // Game over
+  private paused   = false
   private gameOver = false
 
   // Selected deploy unit
@@ -99,11 +78,8 @@ export class GameScene extends Phaser.Scene {
   private mapDef: MapDef | null = null
   private hostSlot  = 0
   private guestSlot = 0
+  private isPractice = false
 
-  // Mutable overlay (walls can be broken)
-  private mutableOver: (OverlayType)[][] = []
-  // Wall HP per cell: "row,col" → current HP
-  private wallHP = new Map<string, number>()
   // Wall graphics layer (redrawn on wall change)
   private wallGfx!: Phaser.GameObjects.Graphics
   // Multiplayer channel
@@ -127,19 +103,28 @@ export class GameScene extends Phaser.Scene {
     gameState.hostSlot  = this.hostSlot
     gameState.guestSlot = this.guestSlot
 
-    this.gold       = gameState.gold
-    this.timeLeft   = 180
+    this.isPractice = gameState.roomId?.startsWith('practice-') ?? false
     this.paused     = false
     this.gameOver   = false
-    this.hostBaseHP = 1000
-    this.guestBaseHP= 1000
-    this.hostUnits  = []
-    this.guestUnits = []
-    this.towers     = []
-    this.aiTimer    = 0
-    this.mutableOver = []
-    this.wallHP      = new Map()
-    this.channel     = null
+    this.unitViews  = new Map()
+    this.pendingInputs = []
+    this.prevAttackCds = new Map()
+    this.channel    = null
+
+    // ── Build the sim world (single source of truth, D-12) ──────────────────
+    const role = gameState.role ?? 'host'
+    const pFac = gameState.playerFaction ?? 'machines'
+    const { hostFaction, guestFaction } = resolveSide(role, pFac)
+    this.world = createWorld({
+      gold:         gameState.gold,
+      hostSlot:     this.hostSlot,
+      guestSlot:    this.guestSlot,
+      mapBase:      this.mapDef!.base,
+      mapOver:      this.mapDef!.over,
+      isPractice:   this.isPractice,
+      hostFaction,
+      guestFaction,
+    })
   }
 
   create() {
@@ -150,29 +135,6 @@ export class GameScene extends Phaser.Scene {
     cam.setZoom(MAP_ZOOM)
     cam.centerOn(WORLD_W / 2, WORLD_H / 2)
 
-    // ── Init mutable overlay + wall HP (before drawing) ──────────────────────
-    this.mutableOver = this.mapDef!.over.map(row => [...row])
-    for (let r = 0; r < ROWS; r++) {
-      for (let c = 0; c < COLS; c++) {
-        const ov = this.mutableOver[r][c]
-        if (ov && WALL_OVERLAYS.has(ov)) {
-          this.wallHP.set(`${r},${c}`, WALL_MAX_HP[ov] ?? 200)
-        }
-      }
-    }
-
-    // ── Setup towers ──────────────────────────────────────────────────────────
-    // Stat constants (range/dmg/cd) come from src/towers/TowerData (D-10).
-    for (let s = 0; s < 3; s++) {
-      const cx = slotWorldX(s)
-      // Host-side tower: between rows 13-14, attacks guest units (moving down)
-      const hostTowerY = (13.5) * CELL
-      this.towers.push({ cx, cy: hostTowerY, slotIdx: s, isHostSide: true,  range: TOWER_RANGE, dmg: TOWER_DMG, cd: 0, maxCd: TOWER_CD })
-      // Guest-side tower: between rows 1-2, attacks host units (moving up)
-      const guestTowerY = (1.5) * CELL
-      this.towers.push({ cx, cy: guestTowerY, slotIdx: s, isHostSide: false, range: TOWER_RANGE, dmg: TOWER_DMG, cd: 0, maxCd: TOWER_CD })
-    }
-
     // ── Draw world ────────────────────────────────────────────────────────────
     this.drawMapGrid()
     this.drawBasePlacements()
@@ -180,7 +142,7 @@ export class GameScene extends Phaser.Scene {
       const role = gameState.role ?? 'host'
       const pFac = gameState.playerFaction ?? 'machines'
       const { hostFaction, guestFaction } = resolveSide(role, pFac)
-      renderTowers(this, this.towers, hostFaction, guestFaction)
+      renderTowers(this, this.world.towers, hostFaction, guestFaction)
     }
     this.wallGfx = this.add.graphics().setDepth(4)
     this.drawWallOverlays()
@@ -314,27 +276,21 @@ export class GameScene extends Phaser.Scene {
 
     const def = UNITS.find((u) => u.id === this.selectedUnit)
     if (!def) return
-    if (this.gold < def.cost) return
+    if (this.world.gold < def.cost) return
 
-    this.gold     -= def.cost
-    gameState.gold = this.gold
-    if (this.goldEl) this.goldEl.textContent = String(this.gold)
+    // Gold lives on the sim world now (D-12); deduct there and refresh HUD.
+    this.world.gold -= def.cost
+    if (this.goldEl) this.goldEl.textContent = String(this.world.gold)
     this.updateSlotAffordability()
 
-    const role   = gameState.role ?? 'host'
-    const dir: 1 | -1 = role === 'host' ? -1 : 1  // host moves UP (-1), guest moves DOWN (+1)
-    const spawnX = slotWorldX(nearestSlot)
-    const spawnY = role === 'host' ? hostSpawnY() : guestSpawnY()
+    const role = gameState.role ?? 'host'
 
-    const unit = new Unit(this, spawnX, spawnY, def, nearestSlot, dir)
-    this.assignPath(unit)
-    unit.popIn()
+    // Queue a deploy intent; the sim spawns the unit on the next step (D-04).
+    this.pendingInputs.push({ type: 'deploy', unitId: def.id, slot: nearestSlot, role })
     audio.playDeploy()
-    if (role === 'host') this.hostUnits.push(unit)
-    else                 this.guestUnits.push(unit)
 
-    // Broadcast to opponent
-    if (!gameState.roomId?.startsWith('practice-') && this.channel) {
+    // Broadcast to opponent — wire protocol preserved byte-for-byte
+    if (!this.isPractice && this.channel) {
       void this.channel.send({
         type: 'broadcast', event: 'deploy',
         payload: { unitId: def.id, slot: nearestSlot, role: role as string },
@@ -346,190 +302,101 @@ export class GameScene extends Phaser.Scene {
     this.hud?.querySelectorAll('.dslot').forEach((e) => e.classList.remove('selected'))
   }
 
-  // ─── Update ─────────────────────────────────────────────────────────────────
+  // ─── Update — drive the sim (D-03/D-04) ───────────────────────────────────────
 
   update(_t: number, dt: number) {
-    if (this.paused || this.gameOver) return
+    if (this.paused || this.world.over) return
 
-    this.updateGold(dt)
-    this.updateTimer(dt)
-    this.updateAI(dt)
-    this.updateUnits(dt)
-    this.updateTowers(dt)
+    // 1. Advance the sim one tick (D-08): drain queued inputs, run step().
+    const inputs = this.pendingInputs.splice(0)
+    const events = step(this.world, inputs, dt, Math.random)
 
-    // Prune destroyed containers
-    this.hostUnits  = this.hostUnits.filter((u) => u.active && !u.isDead())
-    this.guestUnits = this.guestUnits.filter((u) => u.active && !u.isDead())
-  }
+    // 2. Reconcile unit views by SimUnit.id (D-03 — never by array position).
+    this.reconcileUnits()
 
-  private updateGold(dt: number) {
-    this.goldAccum += dt
-    if (this.goldAccum >= 2000) {
-      this.goldAccum -= 2000
-      this.gold = Math.min(this.gold + 10, 9999)
-      gameState.gold = this.gold
-      if (this.goldEl) this.goldEl.textContent = String(this.gold)
-      this.updateSlotAffordability()
+    // 3. Per-attack audio (preserves the old updateUnits audio.playHit() — SC#1).
+    //    Continuous-state read of attackCd, NOT a sim event: when a unit's
+    //    cooldown fires it resets attackCd upward to attackRate, so curr > prev.
+    const live = [...this.world.hostUnits, ...this.world.guestUnits]
+    const liveIds = new Set<string>()
+    for (const u of live) {
+      liveIds.add(u.id)
+      const prev = this.prevAttackCds.get(u.id)
+      if (prev !== undefined && u.attackCd > prev) audio.playHit()
+      this.prevAttackCds.set(u.id, u.attackCd)
     }
-  }
-
-  private updateTimer(dt: number) {
-    this.timeLeft = Math.max(0, this.timeLeft - dt / 1000)
-    if (this.timerEl) {
-      const m = Math.floor(this.timeLeft / 60)
-      const s = Math.floor(this.timeLeft % 60)
-      this.timerEl.textContent = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+    for (const id of this.prevAttackCds.keys()) {
+      if (!liveIds.has(id)) this.prevAttackCds.delete(id)
     }
-    if (this.timeLeft <= 0) {
-      if (this.hostBaseHP > this.guestBaseHP)      this.triggerGameOver('host')
-      else if (this.guestBaseHP > this.hostBaseHP) this.triggerGameOver('guest')
-      else                                          this.triggerGameOver('tie')
-    }
-  }
 
-  private updateAI(dt: number) {
-    if (!gameState.roomId?.startsWith('practice-')) return
-
-    this.aiTimer += dt
-    if (this.aiTimer < this.aiInterval) return
-    this.aiTimer = 0
-
-    const pFac   = gameState.playerFaction ?? 'machines'
-    const oppFac = opponentFaction(pFac)
-    const oppPool = UNITS.filter((u) => u.faction === oppFac)
-    const def     = oppPool[Math.floor(Math.random() * oppPool.length)]
-
-    // AI spawns from a random slot
-    const slotIdx = Math.floor(Math.random() * 3)
-
-    const role   = gameState.role ?? 'host'
-    // AI is the opponent: if player is host (dir=-1), AI is guest (dir=+1)
-    const aiDir: 1 | -1 = role === 'host' ? 1 : -1
-    const spawnX = slotWorldX(slotIdx)
-    const spawnY = role === 'host' ? guestSpawnY() : hostSpawnY()
-
-    const unit = new Unit(this, spawnX, spawnY, def, slotIdx, aiDir)
-    this.assignPath(unit)
-    unit.popIn()
-    if (role === 'host') this.guestUnits.push(unit)
-    else                 this.hostUnits.push(unit)
-  }
-
-  private updateUnits(dt: number) {
-    const processUnits = (movers: Unit[], enemies: Unit[]) => {
-      for (const unit of movers) {
-        if (!unit.active || unit.isDead()) continue
-
-        // ── Wall attack ──────────────────────────────────────────────────────
-        if (unit.wallTarget) {
-          const [wr, wc] = unit.wallTarget
-          if (!this.wallHP.has(`${wr},${wc}`)) {
-            unit.wallTarget = null
-            this.recomputeUnitPath(unit)
-          } else {
-            unit.attackCd -= dt
-            if (unit.attackCd <= 0) {
-              unit.attackCd = unit.attackRate
-              this.damageWall(wr, wc, unit.def.dmg)
-              audio.playWallHit()
-            }
+    // 4. Discrete events → SFX / animation / camera / network (D-03/D-04).
+    let gameOverWinner: 'host' | 'guest' | 'tie' | null = null
+    for (const ev of events) {
+      switch (ev.type) {
+        case 'unit_died':
+          // Death animation handled by reconcile when the id leaves the live set.
+          break
+        case 'wall_break':
+          this.drawWallOverlays()
+          audio.playWallBreak()
+          this.cameras.main.shake(180, 0.009)
+          if (!this.isPractice && this.channel) {
+            void this.channel.send({ type: 'broadcast', event: 'wall_break', payload: { row: ev.row, col: ev.col } })
           }
-          continue
-        }
-
-        // ── Unit combat ──────────────────────────────────────────────────────
-        const blocker = enemies
-          .filter(e => e.active && !e.isDead() && Math.hypot(e.x - unit.x, e.y - unit.y) < COMBAT_RANGE)
-          .sort((a, b) => Math.hypot(a.x - unit.x, a.y - unit.y) - Math.hypot(b.x - unit.x, b.y - unit.y))[0]
-
-        if (blocker) {
-          unit.attackCd -= dt
-          if (unit.attackCd <= 0) {
-            unit.attackCd = unit.attackRate
-            blocker.takeDamage(unit.def.dmg)
-            audio.playHit()
+          break
+        case 'base_hit':
+          if (this.hostHPEl && ev.side === 'host')  this.hostHPEl.textContent  = `${ev.newHp} / 1000`
+          if (this.guestHPEl && ev.side === 'guest') this.guestHPEl.textContent = `${ev.newHp} / 1000`
+          this.flashBaseHit()
+          if (!this.isPractice && this.channel) {
+            void this.channel.send({ type: 'broadcast', event: 'base_hp', payload: { side: ev.side, hp: ev.newHp } })
           }
-          continue
-        }
-
-        // ── Path movement ────────────────────────────────────────────────────
-        if (unit.isAtGoal()) {
-          if (unit.waypoints.length === 0) {
-            // No path found yet — retry next frame
-            this.recomputeUnitPath(unit)
-            continue
-          }
-          // Legitimately reached enemy base
-          const side = unit.dir === -1 ? 'guest' : 'host'
-          this.damageBase(side, BASE_REACH_DMG)
-          unit.takeDamage(9999)
-          continue
-        }
-
-        // Check if next waypoint is a wall that needs breaking
-        const wp  = unit.waypoints[unit.wpIdx]
-        const wpR = Math.floor(wp.y / CELL)
-        const wpC = Math.floor(wp.x / CELL)
-        const ov  = this.mutableOver[wpR]?.[wpC]
-        if (ov && WALL_OVERLAYS.has(ov)) {
-          if (canBreakWall(ov as OverlayType, unit.def.faction)) {
-            unit.wallTarget = [wpR, wpC]
-          }
-          // Wrong faction — unit waits (pathfinder should have routed around)
-          continue
-        }
-
-        const arrived = unit.moveStep(dt)
-        if (arrived) unit.wpIdx++
+          break
+        case 'game_over':
+          gameOverWinner = ev.winner
+          break
       }
     }
 
-    processUnits(this.hostUnits,  this.guestUnits)
-    processUnits(this.guestUnits, this.hostUnits)
-  }
+    // game_over handled once (Risk 5): world.over is already set by the sim.
+    if (gameOverWinner) this.triggerGameOver(gameOverWinner)
 
-  private updateTowers(dt: number) {
-    for (const tower of this.towers) {
-      tower.cd = Math.max(0, tower.cd - dt)
-      if (tower.cd > 0) continue
-
-      // Host-side tower attacks guest units; guest-side tower attacks host units
-      const targets = tower.isHostSide ? this.guestUnits : this.hostUnits
-      const inRange  = targets
-        .filter((u) => u.active && !u.isDead() &&
-          Math.hypot(u.x - tower.cx, u.y - tower.cy) <= tower.range)
-        .sort((a, b) =>
-          Math.hypot(a.x - tower.cx, a.y - tower.cy) -
-          Math.hypot(b.x - tower.cx, b.y - tower.cy))
-
-      if (inRange.length === 0) continue
-      inRange[0].takeDamage(tower.dmg)
-      tower.cd = tower.maxCd
+    // 5. HUD reads live state directly off the world each frame.
+    if (this.goldEl)  this.goldEl.textContent = String(this.world.gold)
+    if (this.timerEl) {
+      const m = Math.floor(this.world.timeLeft / 60)
+      const s = Math.floor(this.world.timeLeft % 60)
+      this.timerEl.textContent = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
     }
+    if (this.hostHPEl)  this.hostHPEl.textContent  = `${this.world.hostBaseHp} / 1000`
+    if (this.guestHPEl) this.guestHPEl.textContent = `${this.world.guestBaseHp} / 1000`
+    this.updateSlotAffordability()
   }
 
-  private damageBase(side: 'host' | 'guest', amount: number) {
-    if (this.gameOver) return
-    if (side === 'host') {
-      this.hostBaseHP = Math.max(0, this.hostBaseHP - amount)
-      gameState.hostBaseHp = this.hostBaseHP
-      if (this.hostHPEl) this.hostHPEl.textContent = `${this.hostBaseHP} / 1000`
-      this.broadcastBaseHP(side, this.hostBaseHP)
-      this.flashBaseHit()
-      if (this.hostBaseHP <= 0) this.triggerGameOver('guest')
-    } else {
-      this.guestBaseHP = Math.max(0, this.guestBaseHP - amount)
-      gameState.guestBaseHp = this.guestBaseHP
-      if (this.guestHPEl) this.guestHPEl.textContent = `${this.guestBaseHP} / 1000`
-      this.broadcastBaseHP(side, this.guestBaseHP)
-      this.flashBaseHit()
-      if (this.guestBaseHP <= 0) this.triggerGameOver('host')
+  /**
+   * Reconcile UnitViews against the sim's live units by id (D-03): create+popIn
+   * for new ids, syncFrom for existing, playDeathAnimation+delete for vanished
+   * ids. Reconcile by SimUnit.id, NEVER by array position (order changes on prune).
+   */
+  private reconcileUnits() {
+    const liveIds = new Set<string>()
+    for (const u of [...this.world.hostUnits, ...this.world.guestUnits]) {
+      liveIds.add(u.id)
+      let view = this.unitViews.get(u.id)
+      if (!view) {
+        const def = UNITS.find(d => d.id === u.defId)
+        if (!def) continue
+        view = new UnitView(this, u.id, def, u.laneSlot, u.dir)
+        this.unitViews.set(u.id, view)
+        view.popIn()
+      }
+      view.syncFrom(u)
     }
-  }
-
-  private broadcastBaseHP(side: 'host' | 'guest', hp: number) {
-    if (!gameState.roomId?.startsWith('practice-') && this.channel) {
-      void this.channel.send({ type: 'broadcast', event: 'base_hp', payload: { side, hp } })
+    for (const [id, view] of this.unitViews) {
+      if (!liveIds.has(id)) {
+        view.playDeathAnimation()
+        this.unitViews.delete(id)
+      }
     }
   }
 
@@ -550,8 +417,9 @@ export class GameScene extends Phaser.Scene {
   private triggerGameOver(winner: 'host' | 'guest' | 'tie') {
     if (this.gameOver) return
     this.gameOver = true
+    this.world.over = true
     this.scene.pause()
-    if (!gameState.roomId?.startsWith('practice-') && this.channel) {
+    if (!this.isPractice && this.channel) {
       void this.channel.send({ type: 'broadcast', event: 'game_over', payload: { winner } })
     }
 
@@ -562,7 +430,7 @@ export class GameScene extends Phaser.Scene {
     if (playerWon)    audio.playVictory()
     else if (!isTie)  audio.playDefeat()
 
-    if (!gameState.roomId?.startsWith('practice-')) {
+    if (!this.isPractice) {
       void this.recordResult(playerWon ? 'win' : isTie ? 'tie' : 'loss')
     }
 
@@ -608,8 +476,8 @@ export class GameScene extends Phaser.Scene {
   private showResultOverlay(won: boolean, tie: boolean, _winner: 'host' | 'guest' | 'tie') {
     const mapName = this.mapDef?.name ?? ''
     const role    = gameState.role ?? 'host'
-    const myHP    = role === 'host' ? this.hostBaseHP  : this.guestBaseHP
-    const oppHP   = role === 'host' ? this.guestBaseHP : this.hostBaseHP
+    const myHP    = role === 'host' ? this.world.hostBaseHp  : this.world.guestBaseHp
+    const oppHP   = role === 'host' ? this.world.guestBaseHp : this.world.hostBaseHp
 
     let title: string, subtitle: string, glowColor: string, bgGrad: string
     if (tie) {
@@ -709,57 +577,15 @@ export class GameScene extends Phaser.Scene {
     })
   }
 
-  // ─── Path assignment ────────────────────────────────────────────────────────
-
-  private assignPath(unit: Unit) {
-    if (!this.mapDef) return
-    const startR = Math.max(0, Math.min(ROWS - 1, Math.floor(unit.y / CELL)))
-    const startC = Math.max(0, Math.min(COLS - 1, Math.floor(unit.x / CELL)))
-    const targetSlot = unit.dir === -1 ? this.guestSlot : this.hostSlot
-    const targetRows = unit.dir === -1 ? GUEST_ROWS : HOST_ROWS
-    const goals: Cell[] = []
-    for (let r = targetRows[0]; r <= targetRows[1]; r++)
-      for (let c = BASE_SLOTS[targetSlot].cols[0]; c <= BASE_SLOTS[targetSlot].cols[1]; c++)
-        goals.push([r, c])
-    const cellPath = findPath(startR, startC, goals, this.mapDef.base, this.mutableOver, unit.def.faction)
-    unit.setWaypoints(cellPath.map(([r, c]) => ({ x: c * CELL + CELL / 2, y: r * CELL + CELL / 2 })))
-  }
-
-  private recomputeUnitPath(unit: Unit) {
-    if (!unit.isDead()) this.assignPath(unit)
-  }
-
-  // ─── Wall system ────────────────────────────────────────────────────────────
-
-  private damageWall(r: number, c: number, amount: number) {
-    const key = `${r},${c}`
-    const hp = this.wallHP.get(key)
-    if (hp === undefined) return
-    const newHp = Math.max(0, hp - amount)
-    this.wallHP.set(key, newHp)
-    this.drawWallOverlays()
-    if (newHp <= 0) this.breakWall(r, c)
-  }
-
-  private breakWall(r: number, c: number, broadcast = true) {
-    const key = `${r},${c}`
-    this.wallHP.delete(key)
-    this.mutableOver[r][c] = null
-    this.drawWallOverlays()
-    audio.playWallBreak()
-    this.cameras.main.shake(180, 0.009)
-    if (broadcast && !gameState.roomId?.startsWith('practice-') && this.channel) {
-      void this.channel.send({ type: 'broadcast', event: 'wall_break', payload: { row: r, col: c } })
-    }
-    for (const unit of [...this.hostUnits, ...this.guestUnits])
-      this.recomputeUnitPath(unit)
-  }
+  // ─── Wall overlay rendering (read off the sim world) ─────────────────────────
 
   private drawWallOverlays() {
+    if (!this.wallGfx) return
     this.wallGfx.clear()
+    const over = this.world.mutableOver
     for (let r = 0; r < ROWS; r++) {
       for (let c = 0; c < COLS; c++) {
-        const ov = this.mutableOver[r][c]
+        const ov = over[r][c]
         if (!ov || !WALL_OVERLAYS.has(ov)) continue
         const oc = OVERLAY_COLOR[ov as Exclude<OverlayType, null>]
         if (!oc) continue
@@ -771,9 +597,9 @@ export class GameScene extends Phaser.Scene {
       }
     }
     // HP bars for damaged walls
-    for (const [key, hp] of this.wallHP) {
+    for (const [key, hp] of this.world.wallHP) {
       const [r, c] = key.split(',').map(Number)
-      const ov = this.mutableOver[r][c]
+      const ov = over[r][c]
       const maxHp = ov ? WALL_MAX_HP[ov] : undefined
       if (!maxHp || hp >= maxHp) continue
       const pct = hp / maxHp
@@ -787,7 +613,7 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  // ─── Multiplayer channel ─────────────────────────────────────────────────────
+  // ─── Multiplayer channel (wire protocol preserved byte-for-byte, D-04) ────────
 
   private setupChannel() {
     if (!gameState.roomId || gameState.roomId.startsWith('practice-')) return
@@ -795,31 +621,29 @@ export class GameScene extends Phaser.Scene {
       .channel(`game:${gameState.roomId}`)
       .on('broadcast', { event: 'deploy' }, ({ payload }) => {
         const p = payload as { unitId: string; slot: number; role: string }
-        const def = UNITS.find(u => u.id === p.unitId)
-        if (!def) return
-        const dir: 1 | -1 = p.role === 'host' ? -1 : 1
-        const spawnX = slotWorldX(p.slot)
-        const spawnY = p.role === 'host' ? hostSpawnY() : guestSpawnY()
-        const unit = new Unit(this, spawnX, spawnY, def, p.slot, dir)
-        this.assignPath(unit)
-        unit.popIn()
-        if (p.role === 'host') this.hostUnits.push(unit)
-        else this.guestUnits.push(unit)
+        // Map the remote deploy into a sim input; the sim spawns it next step.
+        this.pendingInputs.push({ type: 'deploy', unitId: p.unitId, slot: p.slot, role: p.role as 'host' | 'guest' })
       })
       .on('broadcast', { event: 'wall_break' }, ({ payload }) => {
         const p = payload as { row: number; col: number }
-        if (this.wallHP.has(`${p.row},${p.col}`)) this.breakWall(p.row, p.col, false)
+        // Apply the opponent's wall break via a sim input (no rebroadcast — the
+        // sim emits a wall_break event which the scene renders; this matches the
+        // old breakWall(...,false) no-rebroadcast path because received breaks
+        // come from the channel, not local combat).
+        if (this.world.wallHP.has(`${p.row},${p.col}`)) {
+          this.pendingInputs.push({ type: 'wall_break', row: p.row, col: p.col })
+        }
       })
       .on('broadcast', { event: 'base_hp' }, ({ payload }) => {
         const p = payload as { side: 'host' | 'guest'; hp: number }
+        // Trust-and-overwrite preserved exactly as v1.0 (T-10-03-01): write the
+        // sim world directly (D-12 — gameState no longer carries base HP).
         if (p.side === 'host') {
-          this.hostBaseHP = p.hp
-          gameState.hostBaseHp = p.hp
+          this.world.hostBaseHp = p.hp
           if (this.hostHPEl) this.hostHPEl.textContent = `${p.hp} / 1000`
           if (p.hp <= 0) this.triggerGameOver('guest')
         } else {
-          this.guestBaseHP = p.hp
-          gameState.guestBaseHp = p.hp
+          this.world.guestBaseHp = p.hp
           if (this.guestHPEl) this.guestHPEl.textContent = `${p.hp} / 1000`
           if (p.hp <= 0) this.triggerGameOver('host')
         }
@@ -943,7 +767,7 @@ export class GameScene extends Phaser.Scene {
     <div id="gh-timer">03:00</div>
   </div>
   <div class="gh-res">
-    <div class="gh-pill"><div class="gh-ri ri-g">&#128176;</div><span id="gh-gold">${this.gold}</span></div>
+    <div class="gh-pill"><div class="gh-ri ri-g">&#128176;</div><span id="gh-gold">${this.world.gold}</span></div>
     <button id="gh-back">&#8592; LOBBY</button>
   </div>
 </div>
@@ -1012,7 +836,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private onDeployTap(unitId: string, cost: number, el: HTMLElement) {
-    if (this.gold < cost) return
+    if (this.world.gold < cost) return
     if (this.selectedUnit === unitId) {
       this.selectedUnit = null
       this.hud.querySelectorAll('.dslot').forEach((e) => e.classList.remove('selected'))
@@ -1025,7 +849,7 @@ export class GameScene extends Phaser.Scene {
 
   private updateSlotAffordability() {
     this.hud?.querySelectorAll<HTMLElement>('.dslot:not(.locked)').forEach((el) => {
-      el.classList.toggle('cant-afford', this.gold < Number(el.dataset.cost ?? 0))
+      el.classList.toggle('cant-afford', this.world.gold < Number(el.dataset.cost ?? 0))
     })
   }
 
