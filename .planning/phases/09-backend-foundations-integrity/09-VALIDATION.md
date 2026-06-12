@@ -1,9 +1,9 @@
 ---
 phase: 9
 slug: 09-backend-foundations-integrity
-status: draft
-nyquist_compliant: false
-wave_0_complete: false
+status: planned
+nyquist_compliant: true
+wave_0_complete: true
 created: 2026-06-12
 ---
 
@@ -41,13 +41,13 @@ created: 2026-06-12
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| TBD | TBD | TBD | FND-01 | T-forged-write | RLS denies a client forging a wallet balance write (re-read row as service-role, assert unchanged) | integration (RLS) | `npx vitest run --project rls` (`test/rls/wallet-rls.test.ts`) | ❌ W0 | ⬜ pending |
-| TBD | TBD | TBD | FND-01 | T-double-credit | credit RPC is idempotent (retry credits once) | integration (RLS) | same file, idempotency case | ❌ W0 | ⬜ pending |
-| TBD | TBD | TBD | FND-01 | T-cross-account | RLS shells deny client writes (inventory/upgrades/match_results) | integration (RLS) | optional extra cases | ❌ W0 | ⬜ pending |
-| TBD | TBD | TBD | FND-02 | T-guest-collision | No `'guest'` identity literal remains; `userId` is a required UUID | unit/static | grep assertion in CI + `tsc` (type narrows `userId`) | ❌ W0 | ⬜ pending |
-| TBD | TBD | TBD | FND-03 | T-secret-bundled | Built bundle contains no service-role secret (+ planted-secret negative test) | build-scan | `bash scripts/scan-bundle.sh` | ❌ W0 | ⬜ pending |
-| TBD | TBD | TBD | FND-04 | — | pathfinder pure fns correct (`findPath`/`isWalkable`/`canBreakWall`) | unit | `npx vitest run --project unit` (`test/unit/pathfinder.test.ts`) | ❌ W0 | ⬜ pending |
-| TBD | TBD | TBD | FND-05 | T-direct-write | Scenes hold no direct `supabase.from()` for authoritative tables | static | grep assertion in CI (no `supabase.from('profiles'\|'rooms'\|'wallet')` in `src/scenes/`) | ❌ W0 | ⬜ pending |
+| 09-05·T1 | 09-05 | 4 | FND-01 | T-forged-write | RLS denies a client forging a wallet balance write (re-read row as service-role, assert unchanged) | integration (RLS) | `npx vitest run --project rls` (`test/rls/wallet-rls.test.ts`) | ❌ W0 | ⬜ pending |
+| 09-05·T1 | 09-05 | 4 | FND-01 | T-double-credit | credit RPC is idempotent (retry credits once) | integration (RLS) | same file, idempotency case | ❌ W0 | ⬜ pending |
+| 09-05·T1 | 09-05 | 4 | FND-01 | T-cross-account | RLS shells deny client writes (inventory/upgrades/match_results) | integration (RLS) | optional extra cases | ❌ W0 | ⬜ pending |
+| 09-04·T1-3 | 09-04 | 3 | FND-02 | T-guest-collision | No `'guest'` identity literal remains; `userId` is a required UUID | unit/static | grep assertion in CI + `tsc` (type narrows `userId`) | ❌ W0 | ⬜ pending |
+| 09-05·T2 | 09-05 | 4 | FND-03 | T-secret-bundled | Built bundle contains no service-role secret (+ planted-secret negative test) | build-scan | `bash scripts/scan-bundle.sh` | ❌ W0 | ⬜ pending |
+| 09-01·T3 | 09-01 | 1 | FND-04 | — | pathfinder pure fns correct (`findPath`/`isWalkable`/`canBreakWall`) | unit | `npx vitest run --project unit` (`test/unit/pathfinder.test.ts`) | ❌ W0 | ⬜ pending |
+| 09-03·all + 09-05·T3 | 09-05 | 4 | FND-05 | T-direct-write | Scenes hold no direct `supabase.from()` for authoritative tables | static | grep assertion in CI (no `supabase.from('profiles'\|'rooms'\|'wallet')` in `src/scenes/`) | ❌ W0 | ⬜ pending |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -84,4 +84,4 @@ created: 2026-06-12
 - [ ] Feedback latency < 2s (unit)
 - [ ] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
+**Approval:** planned — task IDs mapped to plans 09-01..09-05 (2026-06-12)
