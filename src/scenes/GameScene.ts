@@ -5,6 +5,7 @@ import { recordMatchResult } from '../lib/api/account'
 import { UNITS } from '../units/UnitData'
 import { Unit, COMBAT_RANGE, BASE_REACH_DMG } from '../units/Unit'
 import { findPath, canBreakWall, type Cell } from '../lib/pathfinder'
+import { resolveSide, opponentFaction } from '../lib/sideHelper'
 import { audio } from '../lib/audio'
 import type { Faction, OverlayType, MapDef } from '../types'
 import {
@@ -242,10 +243,8 @@ export class GameScene extends Phaser.Scene {
     g.setDepth(2)
 
     const role = gameState.role ?? 'host'
-    const pFac   = gameState.playerFaction ?? 'machines'
-    const oppFac = this.opponentFaction(pFac)
-    const hostFac  = role === 'guest' ? oppFac : pFac
-    const guestFac = role === 'guest' ? pFac   : oppFac
+    const pFac = gameState.playerFaction ?? 'machines'
+    const { hostFaction: hostFac, guestFaction: guestFac } = resolveSide(role, pFac)
 
     const hc = fac(hostFac)
     const gc = fac(guestFac)
@@ -294,11 +293,9 @@ export class GameScene extends Phaser.Scene {
     const g = this.add.graphics()
     g.setDepth(3)
 
-    const role    = gameState.role ?? 'host'
-    const pFac    = gameState.playerFaction ?? 'machines'
-    const oppFac  = this.opponentFaction(pFac)
-    const hostFac  = role === 'guest' ? oppFac : pFac
-    const guestFac = role === 'guest' ? pFac   : oppFac
+    const role = gameState.role ?? 'host'
+    const pFac = gameState.playerFaction ?? 'machines'
+    const { hostFaction: hostFac, guestFaction: guestFac } = resolveSide(role, pFac)
 
     for (const tower of this.towers) {
       const faction = tower.isHostSide ? hostFac : guestFac
@@ -314,12 +311,6 @@ export class GameScene extends Phaser.Scene {
       g.fillStyle(c.bd, 1)
       for (let i = 0; i < 3; i++) g.fillRect(x + 2 + i * 9, y - 6, 6, 8)
     }
-  }
-
-  private opponentFaction(pFac: string): Faction {
-    if (pFac === 'machines') return 'plants'
-    if (pFac === 'plants')   return 'wizards'
-    return 'machines'
   }
 
   // ─── Input ──────────────────────────────────────────────────────────────────
@@ -430,7 +421,7 @@ export class GameScene extends Phaser.Scene {
     this.aiTimer = 0
 
     const pFac   = gameState.playerFaction ?? 'machines'
-    const oppFac = this.opponentFaction(pFac)
+    const oppFac = opponentFaction(pFac)
     const oppPool = UNITS.filter((u) => u.faction === oppFac)
     const def     = oppPool[Math.floor(Math.random() * oppPool.length)]
 
