@@ -73,6 +73,8 @@ export class LobbyScene extends Phaser.Scene {
   }
 
   create() {
+    if (!gameState.userId) { this.scene.start('AuthScene'); return }
+
     this.overlay = document.createElement('div')
     this.overlay.className = 'pr-overlay'
     document.body.appendChild(this.overlay)
@@ -201,7 +203,7 @@ export class LobbyScene extends Phaser.Scene {
             <!-- Signed in as -->
             <div style="margin-top:24px;padding-top:16px;border-top:1px solid ${T.borderMid};display:flex;justify-content:space-between;align-items:center;">
               <span style="font-family:${T.mono};font-size:9px;color:${T.textDim};letter-spacing:1px;">
-                ${gameState.userId ? `SIGNED IN · ${gameState.userId.slice(0, 8)}...` : 'PLAYING AS GUEST'}
+                ${gameState.userId ? `SIGNED IN · ${gameState.userId.slice(0, 8)}...` : 'NOT SIGNED IN'}
               </span>
               <button class="pr-btn-ghost" id="lobby-signout" style="font-size:9px;letter-spacing:1px;">SIGN OUT</button>
             </div>
@@ -309,6 +311,7 @@ export class LobbyScene extends Phaser.Scene {
 
     // ── Practice Mode (solo, no Supabase room needed) ─────────────────────────
     ;(document.getElementById('rc-practice') as HTMLButtonElement).onclick = () => {
+      if (!gameState.userId) { this.scene.start('AuthScene'); return }
       const faction = gameState.playerFaction ?? 'machines'
       gameState.role = 'host'
       gameState.roomId = 'practice-' + Date.now()
@@ -328,6 +331,7 @@ export class LobbyScene extends Phaser.Scene {
 
     // ── Create Room ──────────────────────────────────────────────────────────
     ;(document.getElementById('rc-create') as HTMLButtonElement).onclick = async () => {
+      if (!gameState.userId) { this.scene.start('AuthScene'); return }
       setErr('')
       const btn = document.getElementById('rc-create') as HTMLButtonElement
       btn.textContent = 'CREATING...'
@@ -337,7 +341,7 @@ export class LobbyScene extends Phaser.Scene {
       const faction = gameState.playerFaction ?? 'machines'
 
       const { room, error } = await createRoom({
-        hostId: gameState.userId ?? 'guest',
+        hostId: gameState.userId,
         hostFaction: faction,
         code,
       })
@@ -392,6 +396,7 @@ export class LobbyScene extends Phaser.Scene {
 
     // ── Join Room ────────────────────────────────────────────────────────────
     ;(document.getElementById('rc-join') as HTMLButtonElement).onclick = async () => {
+      if (!gameState.userId) { this.scene.start('AuthScene'); return }
       setErr('')
       const code = codeInput.value.trim().toUpperCase()
       if (code.length !== 6) { setErr('ENTER A 6-CHARACTER CODE'); return }
@@ -411,7 +416,7 @@ export class LobbyScene extends Phaser.Scene {
 
       const faction = gameState.playerFaction ?? 'machines'
       const { error: joinErr } = await joinRoom(room.id, {
-        guestId: gameState.userId ?? 'guest',
+        guestId: gameState.userId,
         guestFaction: faction,
       })
 
