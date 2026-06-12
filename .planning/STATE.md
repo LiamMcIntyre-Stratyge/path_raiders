@@ -5,7 +5,7 @@ status: planning
 progress:
   phases_total: 6
   phases_done: 0
-  plans_total: 0
+  plans_total: 6
   plans_done: 0
 ---
 
@@ -21,9 +21,9 @@ See: .planning/PROJECT.md (updated 2026-06-12)
 ## Current Position
 
 Phase: 9 of 14 (Backend Foundations & Integrity) — first of 6 v2.0 phases (9–14)
-Plan: — (not yet planned)
-Status: Context gathered — ready to plan
-Last activity: 2026-06-12 — Phase 9 context gathered (4 areas discussed; CONTEXT.md written)
+Plan: 0/6 plans executed (6 plans, 5 waves — planned & verified)
+Status: Planned — ready to execute (`/gsd:execute-phase 9`)
+Last activity: 2026-06-12 — Phase 9 researched, planned (6 plans), and verified (plan-checker: PLANS VERIFIED, no blockers)
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -52,8 +52,8 @@ Progress: [░░░░░░░░░░] 0%
 ## Session Continuity
 
 Last session: 2026-06-12
-Stopped at: Phase 9 context gathered — decisions captured in 09-CONTEXT.md.
-Resume file: .planning/phases/09-backend-foundations-integrity/09-CONTEXT.md
+Stopped at: Phase 9 planned (6 PLAN.md files) and verified. Next: `/gsd:execute-phase 9`.
+Resume file: .planning/phases/09-backend-foundations-integrity/09-01-PLAN.md
 
 ✓ Resolved 2026-06-12: Reworded REQUIREMENTS.md (FND-02) + ROADMAP.md (Phase 9 Goal/SC#2)
 to the email-only identity criterion (D-04, no anonymous auth) before planning Phase 9, so
