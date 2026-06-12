@@ -1,5 +1,6 @@
 import Phaser from 'phaser'
 import { supabase } from '../lib/supabase'
+import { createRoom, findRoomByCode, joinRoom } from '../lib/api/rooms'
 import gameState from '../lib/gameState'
 import type { Faction } from '../types'
 import type { RealtimeChannel } from '@supabase/supabase-js'
@@ -335,18 +336,13 @@ export class LobbyScene extends Phaser.Scene {
       const code = generateRoomCode()
       const faction = gameState.playerFaction ?? 'machines'
 
-      const { data: room, error } = await supabase
-        .from('rooms')
-        .insert({
-          host_id: gameState.userId ?? 'guest',
-          host_faction: faction,
-          code,
-          state: 'waiting',
-        })
-        .select()
-        .single()
+      const { room, error } = await createRoom({
+        hostId: gameState.userId ?? 'guest',
+        hostFaction: faction,
+        code,
+      })
 
-      if (error) {
+      if (error || !room) {
         setErr('FAILED TO CREATE ROOM — TRY AGAIN')
         btn.textContent = 'CREATE ROOM'
         btn.disabled = false
@@ -404,14 +400,9 @@ export class LobbyScene extends Phaser.Scene {
       btn.textContent = 'JOINING...'
       btn.disabled = true
 
-      const { data: room, error } = await supabase
-        .from('rooms')
-        .select()
-        .eq('code', code)
-        .eq('state', 'waiting')
-        .single()
+      const room = await findRoomByCode(code)
 
-      if (error || !room) {
+      if (!room) {
         setErr('ROOM NOT FOUND OR ALREADY STARTED')
         btn.textContent = 'JOIN GAME'
         btn.disabled = false
@@ -419,16 +410,12 @@ export class LobbyScene extends Phaser.Scene {
       }
 
       const faction = gameState.playerFaction ?? 'machines'
-      const { error: updateErr } = await supabase
-        .from('rooms')
-        .update({
-          guest_id: gameState.userId ?? 'guest',
-          guest_faction: faction,
-          state: 'active',
-        })
-        .eq('id', room.id)
+      const { error: joinErr } = await joinRoom(room.id, {
+        guestId: gameState.userId ?? 'guest',
+        guestFaction: faction,
+      })
 
-      if (updateErr) {
+      if (joinErr) {
         setErr('FAILED TO JOIN ROOM — TRY AGAIN')
         btn.textContent = 'JOIN GAME'
         btn.disabled = false
