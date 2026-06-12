@@ -16,7 +16,7 @@ export interface UnitDefinition {
 }
 
 export interface GameStateType {
-  userId: string | null
+  userId: string | null  // null only before sign-in; required real UUID at every play entry (FND-02, D-05)
   username: string | null
   playerFaction: Faction | null
   unlockedUnits: string[]
