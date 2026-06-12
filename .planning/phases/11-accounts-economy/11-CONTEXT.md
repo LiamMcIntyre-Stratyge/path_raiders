@@ -120,9 +120,16 @@ art (user-owned in Claude designs — this phase integrates provided designs).
 - `.planning/phases/09-backend-foundations-integrity/09-CONTEXT.md` — D-02 (wallet exemplar:
   RLS read-own + `SECURITY DEFINER` credit RPC + forged-write test), D-03 (`inventory` /
   `match_results` bare RLS shells to be filled in here), D-07/D-08 (thin `src/lib/api/` seam;
-  wallet client consumed by P11), email-only identity (D-04/05).
+  wallet client consumed by P11), email-only identity (D-04/05). **Phase 9 is complete** — these
+  are live, not aspirational.
 - `.planning/phases/09-backend-foundations-integrity/09-RESEARCH.md` — backend integrity
   research underpinning the migration/RPC shapes.
+
+### Phase 10 handoff this phase consumes (plan/execute Phase 10 first)
+- `.planning/phases/10-services-simulation-refactor/10-CONTEXT.md` — esp. **D-13** (keep client
+  `recordResult` behavior-preserving; **Phase 11 retires it and moves authority server-side**),
+  **D-12/D-14** (slimmed read-through `gameState` cache that P11's wallet/owned-units join),
+  and **D-04** (sim emits `game_over`/match-outcome events — the source of P11's match reports).
 
 ### Current Supabase wiring & code to change
 - `.planning/codebase/INTEGRATIONS.md` — `profiles` (`id`, `wins`, `losses`, `unlocked_units[]`,
@@ -146,14 +153,18 @@ art (user-owned in Claude designs — this phase integrates provided designs).
 ## Existing Code Insights
 
 ### Reusable Assets
-- **Phase 9 `wallet` table + credit RPC + forged-write test** (once Phase 9 executes) — the
-  copy-paste exemplar for the spend RPC and the `inventory` ownership columns.
-- **`src/lib/api/` seam** (Phase 9 D-07) — the wallet/profile clients exist as the only path
-  scenes use; Phase 11 extends them with spend, inventory, reward-submission, and migration reads.
+- **Phase 9 `wallet` table + credit RPC + forged-write test** (Phase 9 is COMPLETE — these
+  exist live) — the copy-paste exemplar for the spend RPC and the `inventory` ownership columns.
+- **`src/lib/api/` seam** (Phase 9 D-07, built) — the wallet/rooms/account clients are the only
+  path scenes use; Phase 11 extends them with spend, inventory, reward-submission, migration reads.
+- **Phase 9 Vitest + CI harness** (built) — the test home for the idempotency / concurrent-spend /
+  forged-grant / existing-player-migration tests this phase needs (Pitfalls 4/5 "Looks Done" list).
 - **`AuthScene` onboard/signup flow** — already sets `username`; remains the sole name-setter
   under D-12 (no new rename UI).
 - **`profiles` columns** — `wins`, `losses`, `unlocked_units[]`, `username` already exist and
   carry forward (D-09/D-11).
+- **Phase 10 sim `game_over` / match-outcome events** (once Phase 10 lands) — the source of the
+  match result each client submits for the D-06 "both must agree" reward settlement.
 
 ### Established Patterns
 - Authoritative writes go through `SECURITY DEFINER` RPCs invoked with the anon key under the
@@ -164,6 +175,11 @@ art (user-owned in Claude designs — this phase integrates provided designs).
 - Scenes never call `supabase.from()` for authoritative tables (FND-05) — services layer only.
 
 ### Integration Points
+- **Retire client `recordResult` authority (the central handoff from Phase 10).** Phase 10 D-13
+  deliberately keeps the client-side `recordResult`/win-milestone-unlock write behavior-preserving
+  through the seam and defers retiring it to **Phase 11**. Phase 11 replaces that client write path
+  with the server-side reward-settlement RPC (D-05/06) and currency-spend unlock RPC (ECON-03/05),
+  removing the win-milestone unlock logic at `GameScene.ts:623-639`.
 - New **reward-settlement columns on `match_results`** (per-player report + winner agreement +
   settled flag, keyed by `match_id`) — the P11/P14 seam (see scope-intersection flag). In P11
   the `match_id` is the existing room/match UUID (no matchmaking yet; room-code path unchanged).
@@ -171,7 +187,17 @@ art (user-owned in Claude designs — this phase integrates provided designs).
 - **Migration** provisions a `wallet` row (+ welcome grant), inventory rows from old
   `unlocked_units[]`, and preserves `wins`/`losses`/`username` for every existing account.
 - **Profile screen** (provided design) binds to W/L + wallet balance + rank placeholder +
-  owned units (D-13).
+  owned units (D-13). Wallet balance + owned units join the Phase 10 read-through `gameState`
+  cache (P10 D-12/13) hydrated via `src/lib/api/`.
+
+### Dependency status (as of 2026-06-12)
+- **Phase 9 — COMPLETE** (all 6 plans executed + verified): backend boundary live, wallet
+  exemplar + RPC + RLS, `src/lib/api/` seam, Vitest+CI, email-only identity. Phase 11 builds
+  directly on these.
+- **Phase 10 — context gathered, not yet planned/executed.** Phase 11 depends on Phase 10's
+  services/sim refactor (esp. the slimmed read-through `gameState` and the sim's match-outcome
+  events) and on its explicit handoff to retire `recordResult` here. **Plan/execute Phase 10
+  before Phase 11.**
 
 </code_context>
 

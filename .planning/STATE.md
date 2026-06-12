@@ -69,8 +69,13 @@ Open follow-ups (non-blocking, by design):
 ## Session Continuity
 
 Last session: 2026-06-12
-Stopped at: Phase 10 context gathered — 10-CONTEXT.md written (5 areas: sim purity, determinism seams, towers, gameState reduction, verification). Phase 09 complete (all 6 plans executed + verified PASS; backend boundary live, Vitest+CI, api seam, email-only identity). Next: `/gsd:plan-phase 10`.
-Resume file: .planning/phases/10-services-simulation-refactor/10-CONTEXT.md
+Stopped at: Phase 11 (Accounts & Economy) context gathered AHEAD of execution — 11-CONTEXT.md
+written (4 areas: economy balance, reward trust pre-P14, v1.0 migration, profile & name).
+Execution position unchanged: Phase 09 complete; **Phase 10 is next to plan** (`/gsd:plan-phase 10`),
+then execute 10 before planning/executing 11. Phase 11 depends on Phase 10's read-through
+gameState + the recordResult-authority handoff (P10 D-13).
+Resume file (execution): .planning/phases/10-services-simulation-refactor/10-CONTEXT.md
+Resume file (P11 context): .planning/phases/11-accounts-economy/11-CONTEXT.md
 
 ✓ Resolved 2026-06-12: Reworded REQUIREMENTS.md (FND-02) + ROADMAP.md (Phase 9 Goal/SC#2)
 to the email-only identity criterion (D-04, no anonymous auth) before planning Phase 9, so
