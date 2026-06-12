@@ -1,5 +1,6 @@
 import Phaser from 'phaser'
 import { supabase } from '../lib/supabase'
+import { getProfile, upsertProfile } from '../lib/api/account'
 import gameState from '../lib/gameState'
 import type { Faction } from '../types'
 
@@ -269,20 +270,16 @@ export class AuthScene extends Phaser.Scene {
         return
       }
       const userId = session.user.id
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('username, faction, unlocked_units, wins, losses')
-        .eq('id', userId)
-        .single()
+      const profile = await getProfile(userId)
 
       this.sessionData = {
         userId,
         username: profile?.username ?? null,
-        faction: (profile?.faction as Faction) ?? null,
+        faction: profile?.faction ?? null,
       }
       gameState.userId = userId
       gameState.username = profile?.username ?? null
-      gameState.playerFaction = (profile?.faction as Faction) ?? null
+      gameState.playerFaction = profile?.faction ?? null
       gameState.unlockedUnits = profile?.unlocked_units ?? ['scout_drone', 'vine_crawler', 'apprentice_mage']
       gameState.wins   = profile?.wins   ?? 0
       gameState.losses = profile?.losses ?? 0
@@ -474,14 +471,10 @@ export class AuthScene extends Phaser.Scene {
 
   private async loadProfileAndRoute() {
     if (!gameState.userId) { this.showWelcome(); return }
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('username, faction, unlocked_units, wins, losses')
-      .eq('id', gameState.userId)
-      .single()
+    const profile = await getProfile(gameState.userId)
 
     gameState.username = profile?.username ?? null
-    gameState.playerFaction = (profile?.faction as Faction) ?? null
+    gameState.playerFaction = profile?.faction ?? null
     gameState.unlockedUnits = profile?.unlocked_units ?? ['scout_drone', 'vine_crawler', 'apprentice_mage']
     gameState.wins   = profile?.wins   ?? 0
     gameState.losses = profile?.losses ?? 0
@@ -628,13 +621,13 @@ export class AuthScene extends Phaser.Scene {
         const userId = data.user?.id
         if (!userId) { setErr('SIGNUP FAILED — TRY AGAIN'); btn.textContent = '⚔ JOIN THE RAID'; btn.disabled = false; return }
 
-        const { error: profileErr } = await supabase.from('profiles').upsert({
+        const { error: profileErrMsg } = await upsertProfile({
           id: userId,
           username: step1Data!.name,
           faction: selectedFaction,
-          unlocked_units: ['scout_drone', 'vine_crawler', 'apprentice_mage'],
+          unlockedUnits: ['scout_drone', 'vine_crawler', 'apprentice_mage'],
         })
-        if (profileErr) { setErr('PROFILE CREATION FAILED'); btn.textContent = '⚔ JOIN THE RAID'; btn.disabled = false; return }
+        if (profileErrMsg) { setErr('PROFILE CREATION FAILED'); btn.textContent = '⚔ JOIN THE RAID'; btn.disabled = false; return }
 
         gameState.userId = userId
         gameState.username = step1Data!.name
@@ -866,14 +859,14 @@ export class AuthScene extends Phaser.Scene {
       btn.textContent = 'SAVING...'
       btn.disabled = true
 
-      const { error } = await supabase.from('profiles').upsert({
-        id: gameState.userId,
+      const { error: saveErrMsg } = await upsertProfile({
+        id: gameState.userId!,
         username: name,
         faction: selectedFaction,
-        unlocked_units: ['scout_drone', 'vine_crawler', 'apprentice_mage'],
+        unlockedUnits: ['scout_drone', 'vine_crawler', 'apprentice_mage'],
       })
 
-      if (error) { setErr('SAVE FAILED — TRY AGAIN'); btn.textContent = 'ENTER THE BATTLEFIELD ⚔'; btn.disabled = false; return }
+      if (saveErrMsg) { setErr('SAVE FAILED — TRY AGAIN'); btn.textContent = 'ENTER THE BATTLEFIELD ⚔'; btn.disabled = false; return }
 
       gameState.username = name
       gameState.playerFaction = selectedFaction

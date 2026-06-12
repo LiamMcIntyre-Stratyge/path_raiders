@@ -1,6 +1,7 @@
 import Phaser from 'phaser'
 import gameState from '../lib/gameState'
 import { supabase } from '../lib/supabase'
+import { recordMatchResult } from '../lib/api/account'
 import { UNITS } from '../units/UnitData'
 import { Unit, COMBAT_RANGE, BASE_REACH_DMG } from '../units/Unit'
 import { findPath, canBreakWall, type Cell } from '../lib/pathfinder'
@@ -605,44 +606,14 @@ export class GameScene extends Phaser.Scene {
 
   private async recordResult(result: 'win' | 'loss' | 'tie') {
     if (!gameState.userId) return
-    const col = result === 'win' ? 'wins' : result === 'loss' ? 'losses' : null
-    if (!col) return
+    const payload = await recordMatchResult(gameState.userId, result)
+    if (!payload) return
 
-    const { data } = await supabase
-      .from('profiles')
-      .select('wins, losses, unlocked_units')
-      .eq('id', gameState.userId)
-      .single<{ wins: number; losses: number; unlocked_units: string[] }>()
-    if (!data) return
+    gameState.wins          = payload.wins
+    gameState.losses        = payload.losses
+    gameState.unlockedUnits = payload.unlockedUnits
 
-    const newWins   = (data.wins   ?? 0) + (col === 'wins'   ? 1 : 0)
-    const newLosses = (data.losses ?? 0) + (col === 'losses' ? 1 : 0)
-    const unlocked  = new Set(data.unlocked_units ?? [])
-
-    // Unlock thresholds (win milestones)
-    const THRESHOLDS: Array<{ wins: number; unit: string }> = [
-      { wins: 2, unit: 'assault_bot' },
-      { wins: 3, unit: 'thorn_beast' },
-      { wins: 5, unit: 'elementalist' },
-    ]
-    const newlyUnlocked: string[] = []
-    for (const { wins, unit } of THRESHOLDS) {
-      if (newWins >= wins && !unlocked.has(unit)) {
-        unlocked.add(unit)
-        newlyUnlocked.push(unit)
-      }
-    }
-
-    await supabase
-      .from('profiles')
-      .update({ [col]: (data[col as 'wins' | 'losses'] ?? 0) + 1, unlocked_units: [...unlocked] })
-      .eq('id', gameState.userId)
-
-    gameState.wins         = newWins
-    gameState.losses       = newLosses
-    gameState.unlockedUnits = [...unlocked]
-
-    if (newlyUnlocked.length > 0) this.showUnlockNotification(newlyUnlocked)
+    if (payload.newlyUnlocked.length > 0) this.showUnlockNotification(payload.newlyUnlocked)
   }
 
   private showUnlockNotification(units: string[]) {
