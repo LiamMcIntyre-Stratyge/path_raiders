@@ -6,6 +6,7 @@ import { UNITS } from '../units/UnitData'
 import { Unit, COMBAT_RANGE, BASE_REACH_DMG } from '../units/Unit'
 import { findPath, canBreakWall, type Cell } from '../lib/pathfinder'
 import { resolveSide, opponentFaction } from '../lib/sideHelper'
+import { TOWER_RANGE, TOWER_DMG, TOWER_CD } from '../towers/TowerData'
 import { audio } from '../lib/audio'
 import type { Faction, OverlayType, MapDef } from '../types'
 import {
@@ -166,10 +167,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     // ── Setup towers ──────────────────────────────────────────────────────────
-    const TOWER_RANGE = 6 * CELL   // 216px
-    const TOWER_DMG   = 25
-    const TOWER_CD    = 1400
-
+    // Stat constants (range/dmg/cd) come from src/towers/TowerData (D-10).
     for (let s = 0; s < 3; s++) {
       const cx = slotWorldX(s)
       // Host-side tower: between rows 13-14, attacks guest units (moving down)
