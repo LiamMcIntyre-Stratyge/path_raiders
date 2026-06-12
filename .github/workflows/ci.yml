@@ -1,0 +1,89 @@
+name: ci
+on: [push, pull_request]
+
+jobs:
+  # ─── Job 1: typecheck + unit tests + static gates + build + secret-scan ──────
+  typecheck-unit-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      # Type-check src/ (does not include test/ — kept separate via tsconfig.test.json)
+      - name: tsc --noEmit
+        run: npx tsc --noEmit
+
+      # Unit tests (fast, pure, no Supabase needed)
+      - name: vitest unit
+        run: npx vitest run --project unit
+
+      # FND-05: assert no scene calls supabase.from() for authoritative tables
+      - name: 'static gate: FND-05 no scene table calls'
+        run: |
+          if grep -rEn "supabase\.from\('(profiles|rooms|wallet)'" src/scenes/; then
+            echo "::error::FND-05: scene(s) call supabase.from() for authoritative tables — route through src/lib/api/"
+            exit 1
+          fi
+          echo "FND-05 PASS"
+
+      # FND-02: assert no ?? 'guest' identity literal remains
+      - name: "static gate: FND-02 no ?? 'guest' identity literal"
+        run: |
+          if grep -rnE "\?\? 'guest'" src/scenes/ src/lib/gameState.ts; then
+            echo "::error::FND-02: ?? 'guest' identity fallback found — replace with real-UUID precondition"
+            exit 1
+          fi
+          echo "FND-02 PASS"
+
+      # Build the bundle (use dummy VITE_ vars so the build succeeds without real credentials)
+      - name: npm run build
+        run: npm run build
+        env:
+          VITE_SUPABASE_URL: https://placeholder.supabase.co
+          VITE_SUPABASE_ANON_KEY: sb_publishable_placeholder_anon_key_for_ci_build
+
+      # Scan the built bundle for any bundled privileged secrets (FND-03)
+      - name: bundle secret-scan
+        run: bash scripts/scan-bundle.sh
+
+  # ─── Job 2: RLS integration tests against a real local Supabase stack ─────────
+  # MUST run on ubuntu-latest — Docker is required for `supabase start` (A4)
+  rls:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      # Install the Supabase CLI via the official pinned action (not npx — see RESEARCH.md)
+      - uses: supabase/setup-cli@v2
+        with:
+          version: 2.106.0
+
+      # Boot the local Postgres + Auth + PostgREST stack (blocks until healthy)
+      - name: supabase start
+        run: supabase start
+
+      # Apply all migrations in supabase/migrations/ (creates wallet, RLS, credit RPC, etc.)
+      - name: supabase db reset
+        run: supabase db reset
+
+      # Export the local stack's URL + keys into GITHUB_ENV so vitest can read them
+      # Produces: SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY (verify A1)
+      - name: export supabase env
+        run: supabase status -o env >> "$GITHUB_ENV"
+
+      # Run the RLS integration tests against the live local stack (Pitfall 5: stack up first)
+      - name: vitest rls
+        run: npx vitest run --project rls
