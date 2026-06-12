@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Persistent Game Foundations
 status: executing
-stopped_at: Phase 11 (Accounts & Economy) context gathered AHEAD of execution — 11-CONTEXT.md
-last_updated: "2026-06-12T12:37:29.544Z"
-last_activity: 2026-06-12 -- Phase 11 planning complete
+stopped_at: Completed 10-01-PLAN.md (towers module + sideHelper extraction)
+last_updated: "2026-06-12T12:42:47Z"
+last_activity: 2026-06-12 -- Phase 10 Plan 01 executed
 progress:
   total_phases: 6
   completed_phases: 1
   total_plans: 16
-  completed_plans: 6
-  percent: 17
+  completed_plans: 7
+  percent: 18
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-12)
 
 **Core value:** The realtime lane battle is the heart of the game; every meta-system (accounts, economy, progression, matchmaking) exists to make that loop matter over time.
-**Current focus:** Phase 09 — backend-foundations-integrity
+**Current focus:** Phase 10 — services-simulation-refactor
 
 ## Current Position
 
-Phase: 09 (backend-foundations-integrity) — COMPLETE ✓ (verified PASS)
-Plan: 6 of 6 executed
-Status: Ready to execute
-Last activity: 2026-06-12 -- Phase 11 planning complete
+Phase: 10 (services-simulation-refactor) — IN PROGRESS
+Plan: 1 of 5 executed (10-01 complete)
+Status: Ready to execute 10-02
+Last activity: 2026-06-12 -- Phase 10 Plan 01 executed
 
-Progress: [█░░░░░░░░░] 17% (1/6 v2.0 phases)
+Progress: [█░░░░░░░░░] 18% (Phase 9 complete; Phase 10 1/5 plans)
 
 Open follow-ups (non-blocking, by design):
 
@@ -49,6 +49,8 @@ Open follow-ups (non-blocking, by design):
 - [Phase ?]: 09-01: Explicit vitest imports (no globals) to keep prod tsc scope clean; separate tsconfig.test.json for test type-checking; hand-built ROWS×COLS grids for deterministic pathfinder tests
 - [Phase ?]: Typed src/lib/api/ seam (account/rooms/wallet) wraps all scene table calls; wallet writes route exclusively through credit_wallet RPC
 - [Phase ?]: Added scene-entry guard + per-handler guards in LobbyScene; 'guest' identity literal removed phase-wide; role union preserved (FND-02, D-04/D-05/D-06)
+- [Phase 10-01]: Towers split into src/towers/ TowerData (flat static stats, no scaling — D-10) + TowerView (Phaser render — D-09), mirroring the Unit data/view abstraction
+- [Phase 10-01]: Side/faction resolution centralized into one pure src/lib/sideHelper.ts (resolveSide + opponentFaction); FC color table de-duplicated into TowerView (D-11)
 
 ### Blockers
 
@@ -70,12 +72,11 @@ Open follow-ups (non-blocking, by design):
 ## Session Continuity
 
 Last session: 2026-06-12
-Stopped at: Phase 11 (Accounts & Economy) context gathered AHEAD of execution — 11-CONTEXT.md
-written (4 areas: economy balance, reward trust pre-P14, v1.0 migration, profile & name).
-Execution position unchanged: Phase 09 complete; **Phase 10 is next to plan** (`/gsd:plan-phase 10`),
-then execute 10 before planning/executing 11. Phase 11 depends on Phase 10's read-through
+Stopped at: Completed 10-01-PLAN.md (towers module + sideHelper extraction). Phase 10
+Plan 01 of 5 done. **Next: execute 10-02** (pure src/sim/ core: types + createWorld +
+combat + step). Phase 11 (already context-gathered) still depends on Phase 10's read-through
 gameState + the recordResult-authority handoff (P10 D-13).
-Resume file (execution): .planning/phases/10-services-simulation-refactor/10-CONTEXT.md
+Resume file (execution): .planning/phases/10-services-simulation-refactor/10-02-PLAN.md
 Resume file (P11 context): .planning/phases/11-accounts-economy/11-CONTEXT.md
 
 ✓ Resolved 2026-06-12: Reworded REQUIREMENTS.md (FND-02) + ROADMAP.md (Phase 9 Goal/SC#2)
@@ -90,3 +91,4 @@ the verifier checks against the email-only criterion.
 | Phase 09-backend-foundations-integrity P02 | 25 | - tasks | - files |
 | Phase 09 P03 | 25 | 3 tasks | 6 files |
 | Phase 09-backend-foundations-integrity P04 | 15 | 3 tasks | 2 files |
+| Phase 10 P01 | 4min | 3 tasks | 4 files |

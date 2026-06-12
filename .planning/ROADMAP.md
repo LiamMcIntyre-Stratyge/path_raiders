@@ -76,7 +76,7 @@ UI from scratch.
 
 **Plans**: 5 plans
 
-  - [ ] 10-01-PLAN.md — Promote towers into src/towers/ (TowerData flat table + TowerView) + centralize resolveSide helper (D-09/D-10/D-11)
+  - [x] 10-01-PLAN.md — Promote towers into src/towers/ (TowerData flat table + TowerView) + centralize resolveSide helper (D-09/D-10/D-11)
   - [ ] 10-02-PLAN.md — Pure src/sim/ core: types + createWorld + combat (test-first, D-07 tiebreak) + step() single tick entry with injected rng (D-01/D-06/D-08)
   - [ ] 10-03-PLAN.md — Wire GameScene to the sim: UnitView split, id-reconcile, event mapping, wire protocol preserved (D-02/D-03/D-04)
   - [ ] 10-04-PLAN.md — Slim gameState to a session/profile read-through cache; sim world is the battle source of truth (D-12/D-13/D-14)
@@ -158,7 +158,7 @@ Phases execute in numeric order: 9 → 10 → 11 → 12 → 13 → 14
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 9. Backend Foundations & Integrity | v2.0 | 6/6 | Complete   | 2026-06-12 |
-| 10. Services & Simulation Refactor | v2.0 | 0/5 | Planned | - |
+| 10. Services & Simulation Refactor | v2.0 | 1/5 | In progress | - |
 | 11. Accounts & Economy | v2.0 | 0/TBD | Not started | - |
 | 12. Progression & Upgrades | v2.0 | 0/TBD | Not started | - |
 | 13. Matchmaking & Ranking | v2.0 | 0/TBD | Not started | - |
