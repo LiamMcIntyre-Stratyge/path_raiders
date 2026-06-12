@@ -9,6 +9,7 @@ import { makeWorld, spawnTestUnit } from './_helpers'
 describe('combat (D-17b)', () => {
   it('lower-HP unit dies first and emits a unit_died event with its id', () => {
     const world = makeWorld()
+    world.towers = [] // isolate unit-vs-unit combat from tower fire
     // Two enemies 30px apart (within COMBAT_RANGE = 52), no waypoints → they fight.
     // Host hits for 45/attack; guest hits for 45/attack. Guest has less HP → dies first.
     const host = spawnTestUnit(world, { army: 'host', x: 100, y: 200, hp: 200, dmg: 45 })
@@ -28,6 +29,7 @@ describe('combat (D-17b)', () => {
 
   it('an attack lands on the first cooldown tick (attackCd starts at 0)', () => {
     const world = makeWorld()
+    world.towers = [] // isolate unit combat from tower fire
     const host = spawnTestUnit(world, { army: 'host', x: 100, y: 200, hp: 200, dmg: 45 })
     const guest = spawnTestUnit(world, { army: 'guest', x: 130, y: 200, hp: 200, dmg: 45 })
 
@@ -44,6 +46,7 @@ describe('D-07 id-tiebreak determinism', () => {
     // Build the scenario twice and assert the same enemy is hit both runs.
     function run(): { firstId: string; hitId: string } {
       const world = makeWorld()
+      world.towers = [] // isolate the attacker's target choice from tower fire
       const attacker = spawnTestUnit(world, { army: 'host', x: 100, y: 200, hp: 500, dmg: 45 })
       // Two guests at identical distance (30px) on opposite sides of the attacker.
       const a = spawnTestUnit(world, { army: 'guest', x: 130, y: 200, hp: 500, dmg: 0 })
