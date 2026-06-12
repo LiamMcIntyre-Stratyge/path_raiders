@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Persistent Game Foundations
 status: executing
-stopped_at: "Completed 09-03: API seam (account, rooms, wallet)"
-last_updated: "2026-06-12T09:02:13.196Z"
+stopped_at: Completed 09-04-PLAN.md
+last_updated: "2026-06-12T09:06:39.605Z"
 last_activity: 2026-06-12
 progress:
   total_phases: 6
   completed_phases: 0
   total_plans: 6
-  completed_plans: 3
+  completed_plans: 4
   percent: 0
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-06-12)
 ## Current Position
 
 Phase: 09 (backend-foundations-integrity) — EXECUTING
-Plan: 4 of 6
+Plan: 5 of 6
 Status: Ready to execute
 Last activity: 2026-06-12
 
@@ -43,6 +43,7 @@ Progress: [░░░░░░░░░░] 0%
 - UI/UX and characters owned by user in Claude designs; GSD milestone integrates them, does not design them.
 - [Phase ?]: 09-01: Explicit vitest imports (no globals) to keep prod tsc scope clean; separate tsconfig.test.json for test type-checking; hand-built ROWS×COLS grids for deterministic pathfinder tests
 - [Phase ?]: Typed src/lib/api/ seam (account/rooms/wallet) wraps all scene table calls; wallet writes route exclusively through credit_wallet RPC
+- [Phase ?]: Added scene-entry guard + per-handler guards in LobbyScene; 'guest' identity literal removed phase-wide; role union preserved (FND-02, D-04/D-05/D-06)
 
 ### Blockers
 
@@ -63,8 +64,8 @@ Progress: [░░░░░░░░░░] 0%
 
 ## Session Continuity
 
-Last session: 2026-06-12T09:02:08.281Z
-Stopped at: Completed 09-03: API seam (account, rooms, wallet)
+Last session: 2026-06-12T09:06:39.600Z
+Stopped at: Completed 09-04-PLAN.md
 Resume file: None
 
 ✓ Resolved 2026-06-12: Reworded REQUIREMENTS.md (FND-02) + ROADMAP.md (Phase 9 Goal/SC#2)
@@ -78,3 +79,4 @@ the verifier checks against the email-only criterion.
 | Phase 09 P01 | 15min | 3 tasks | 4 files |
 | Phase 09-backend-foundations-integrity P02 | 25 | - tasks | - files |
 | Phase 09 P03 | 25 | 3 tasks | 6 files |
+| Phase 09-backend-foundations-integrity P04 | 15 | 3 tasks | 2 files |
