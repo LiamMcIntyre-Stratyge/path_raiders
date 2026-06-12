@@ -157,16 +157,16 @@ export class LobbyScene extends Phaser.Scene {
               <div style="font-family:${T.mono};font-size:9px;color:${T.textDim};letter-spacing:3px;margin-bottom:10px;">QUICK STATS</div>
               <div style="display:flex;gap:8px;">
                 <div class="pr-stat-chip" style="flex:1;">
-                  <div style="font-family:${T.mono};font-size:16px;color:${T.gold};font-weight:700;">0</div>
-                  <div style="font-family:${T.mono};font-size:9px;color:${T.textDim};letter-spacing:1px;margin-top:3px;">TROPHIES</div>
+                  <div style="font-family:${T.mono};font-size:16px;color:${T.gold};font-weight:700;">${gameState.wins}</div>
+                  <div style="font-family:${T.mono};font-size:9px;color:${T.textDim};letter-spacing:1px;margin-top:3px;">WINS</div>
                 </div>
                 <div class="pr-stat-chip" style="flex:1;">
-                  <div style="font-family:${T.mono};font-size:16px;color:${T.green};font-weight:700;">—</div>
+                  <div style="font-family:${T.mono};font-size:16px;color:${T.green};font-weight:700;">${gameState.wins + gameState.losses > 0 ? Math.round(gameState.wins / (gameState.wins + gameState.losses) * 100) + '%' : '—'}</div>
                   <div style="font-family:${T.mono};font-size:9px;color:${T.textDim};letter-spacing:1px;margin-top:3px;">WIN RATE</div>
                 </div>
                 <div class="pr-stat-chip" style="flex:1;">
-                  <div style="font-family:${T.mono};font-size:16px;color:${T.blue};font-weight:700;">0</div>
-                  <div style="font-family:${T.mono};font-size:9px;color:${T.textDim};letter-spacing:1px;margin-top:3px;">STREAK</div>
+                  <div style="font-family:${T.mono};font-size:16px;color:${T.blue};font-weight:700;">${gameState.losses}</div>
+                  <div style="font-family:${T.mono};font-size:9px;color:${T.textDim};letter-spacing:1px;margin-top:3px;">LOSSES</div>
                 </div>
               </div>
             </div>

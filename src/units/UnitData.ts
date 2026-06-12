@@ -64,7 +64,7 @@ export const UNITS: UnitDefinition[] = [
     speedPx: 80,
     cost: 50,
     tokenColor: '#D8B4FE',
-    starter: false,
+    starter: true,
   },
   {
     id: 'elementalist',

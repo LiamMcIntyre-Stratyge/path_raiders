@@ -271,7 +271,7 @@ export class AuthScene extends Phaser.Scene {
       const userId = session.user.id
       const { data: profile } = await supabase
         .from('profiles')
-        .select('username, faction, unlocked_units')
+        .select('username, faction, unlocked_units, wins, losses')
         .eq('id', userId)
         .single()
 
@@ -283,7 +283,9 @@ export class AuthScene extends Phaser.Scene {
       gameState.userId = userId
       gameState.username = profile?.username ?? null
       gameState.playerFaction = (profile?.faction as Faction) ?? null
-      gameState.unlockedUnits = profile?.unlocked_units ?? ['scout_drone', 'vine_crawler']
+      gameState.unlockedUnits = profile?.unlocked_units ?? ['scout_drone', 'vine_crawler', 'apprentice_mage']
+      gameState.wins   = profile?.wins   ?? 0
+      gameState.losses = profile?.losses ?? 0
     } catch {
       this.sessionData = null
     }
@@ -474,13 +476,15 @@ export class AuthScene extends Phaser.Scene {
     if (!gameState.userId) { this.showWelcome(); return }
     const { data: profile } = await supabase
       .from('profiles')
-      .select('username, faction, unlocked_units')
+      .select('username, faction, unlocked_units, wins, losses')
       .eq('id', gameState.userId)
       .single()
 
     gameState.username = profile?.username ?? null
     gameState.playerFaction = (profile?.faction as Faction) ?? null
-    gameState.unlockedUnits = profile?.unlocked_units ?? ['scout_drone', 'vine_crawler']
+    gameState.unlockedUnits = profile?.unlocked_units ?? ['scout_drone', 'vine_crawler', 'apprentice_mage']
+    gameState.wins   = profile?.wins   ?? 0
+    gameState.losses = profile?.losses ?? 0
 
     if (!gameState.username) { this.showOnboard(); return }
     this.scene.start('LobbyScene')
@@ -628,14 +632,14 @@ export class AuthScene extends Phaser.Scene {
           id: userId,
           username: step1Data!.name,
           faction: selectedFaction,
-          unlocked_units: ['scout_drone', 'vine_crawler'],
+          unlocked_units: ['scout_drone', 'vine_crawler', 'apprentice_mage'],
         })
         if (profileErr) { setErr('PROFILE CREATION FAILED'); btn.textContent = '⚔ JOIN THE RAID'; btn.disabled = false; return }
 
         gameState.userId = userId
         gameState.username = step1Data!.name
         gameState.playerFaction = selectedFaction
-        gameState.unlockedUnits = ['scout_drone', 'vine_crawler']
+        gameState.unlockedUnits = ['scout_drone', 'vine_crawler', 'apprentice_mage']
         this.scene.start('LobbyScene')
       }
 
@@ -866,14 +870,14 @@ export class AuthScene extends Phaser.Scene {
         id: gameState.userId,
         username: name,
         faction: selectedFaction,
-        unlocked_units: ['scout_drone', 'vine_crawler'],
+        unlocked_units: ['scout_drone', 'vine_crawler', 'apprentice_mage'],
       })
 
       if (error) { setErr('SAVE FAILED — TRY AGAIN'); btn.textContent = 'ENTER THE BATTLEFIELD ⚔'; btn.disabled = false; return }
 
       gameState.username = name
       gameState.playerFaction = selectedFaction
-      gameState.unlockedUnits = ['scout_drone', 'vine_crawler']
+      gameState.unlockedUnits = ['scout_drone', 'vine_crawler', 'apprentice_mage']
       this.scene.start('LobbyScene')
     }
   }

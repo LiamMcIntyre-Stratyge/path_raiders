@@ -20,6 +20,9 @@ export interface GameStateType {
   username: string | null
   playerFaction: Faction | null
   unlockedUnits: string[]
+  loadout: string[]
+  wins: number
+  losses: number
   roomId: string | null
   role: 'host' | 'guest' | null
   hostBaseHp: number

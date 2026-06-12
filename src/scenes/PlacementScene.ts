@@ -249,7 +249,7 @@ export class PlacementScene extends Phaser.Scene {
     const guestSlot = role === 'guest' ? this.chosenSlot! : (this.opponentSlot ?? Math.floor(Math.random() * 3))
     gameState.hostSlot  = hostSlot
     gameState.guestSlot = guestSlot
-    this.scene.start('GameScene', {
+    this.scene.start('LoadoutScene', {
       roomId:        gameState.roomId,
       role:          gameState.role,
       playerFaction: gameState.playerFaction,

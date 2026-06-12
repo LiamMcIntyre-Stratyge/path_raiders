@@ -607,17 +607,66 @@ export class GameScene extends Phaser.Scene {
     if (!gameState.userId) return
     const col = result === 'win' ? 'wins' : result === 'loss' ? 'losses' : null
     if (!col) return
+
     const { data } = await supabase
       .from('profiles')
-      .select(col)
+      .select('wins, losses, unlocked_units')
       .eq('id', gameState.userId)
-      .single<Record<string, number>>()
-    if (data) {
-      await supabase
-        .from('profiles')
-        .update({ [col]: (data[col] ?? 0) + 1 })
-        .eq('id', gameState.userId)
+      .single<{ wins: number; losses: number; unlocked_units: string[] }>()
+    if (!data) return
+
+    const newWins   = (data.wins   ?? 0) + (col === 'wins'   ? 1 : 0)
+    const newLosses = (data.losses ?? 0) + (col === 'losses' ? 1 : 0)
+    const unlocked  = new Set(data.unlocked_units ?? [])
+
+    // Unlock thresholds (win milestones)
+    const THRESHOLDS: Array<{ wins: number; unit: string }> = [
+      { wins: 2, unit: 'assault_bot' },
+      { wins: 3, unit: 'thorn_beast' },
+      { wins: 5, unit: 'elementalist' },
+    ]
+    const newlyUnlocked: string[] = []
+    for (const { wins, unit } of THRESHOLDS) {
+      if (newWins >= wins && !unlocked.has(unit)) {
+        unlocked.add(unit)
+        newlyUnlocked.push(unit)
+      }
     }
+
+    await supabase
+      .from('profiles')
+      .update({ [col]: (data[col as 'wins' | 'losses'] ?? 0) + 1, unlocked_units: [...unlocked] })
+      .eq('id', gameState.userId)
+
+    gameState.wins         = newWins
+    gameState.losses       = newLosses
+    gameState.unlockedUnits = [...unlocked]
+
+    if (newlyUnlocked.length > 0) this.showUnlockNotification(newlyUnlocked)
+  }
+
+  private showUnlockNotification(units: string[]) {
+    const names = units.map(id => UNITS.find(u => u.id === id)?.name ?? id).join(', ')
+    const el = document.createElement('div')
+    el.id = 'gh-unlock'
+    el.innerHTML = `
+<style>
+@keyframes unlock-in{from{opacity:0;transform:translateY(30px) scale(0.85)}to{opacity:1;transform:translateY(0) scale(1)}}
+#gh-unlock{
+  position:fixed;bottom:80px;left:50%;transform:translateX(-50%);
+  background:linear-gradient(135deg,#1a0e00,#2a1800);
+  border:2px solid #f0c050;border-radius:14px;
+  padding:16px 28px;text-align:center;z-index:9999;
+  animation:unlock-in 0.4s cubic-bezier(0.34,1.56,0.64,1) forwards;
+  box-shadow:0 0 30px #f0c05066;
+}
+#gh-unlock .ul-title{font-family:'Lilita One',cursive;font-size:15px;color:#f0c050;letter-spacing:3px;margin-bottom:6px;}
+#gh-unlock .ul-names{font-family:monospace;font-size:12px;color:#e8d8a0;letter-spacing:1px;}
+</style>
+<div class="ul-title">&#9733; UNIT UNLOCKED &#9733;</div>
+<div class="ul-names">${names}</div>`
+    document.body.appendChild(el)
+    setTimeout(() => el.remove(), 4000)
   }
 
   private showResultOverlay(won: boolean, tie: boolean, _winner: 'host' | 'guest' | 'tie') {
@@ -863,12 +912,17 @@ export class GameScene extends Phaser.Scene {
     const role     = gameState.role ?? 'host'
     const mapName  = this.mapDef?.name ?? 'MAP'
 
-    const deployable = UNITS.filter((u) => u.faction === faction)
+    // Use player's chosen loadout; fall back to all unlocked faction units
+    const loadoutIds = gameState.loadout.length > 0
+      ? gameState.loadout
+      : UNITS.filter(u => u.faction === faction && gameState.unlockedUnits.includes(u.id)).map(u => u.id)
+    const deployable = loadoutIds
+      .map(id => UNITS.find(u => u.id === id))
+      .filter((u): u is NonNullable<typeof u> => !!u)
     const slotsHTML  = deployable.map((u) => {
-      const icon   = UNIT_ICON[u.id] ?? '?'
-      const locked = !gameState.unlockedUnits.includes(u.id)
+      const icon = UNIT_ICON[u.id] ?? '?'
       return `
-        <div class="dslot${locked ? ' locked' : ''}"
+        <div class="dslot"
           data-uid="${u.id}" data-cost="${u.cost}"
           title="${u.name} — ${u.cost}g">
           <div class="ds-icon">${icon}</div>

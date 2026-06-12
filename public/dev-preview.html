@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Path Raiders — Dev Preview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito:wght@700;800;900&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#07090f;--gold:#d4a030;--gold-light:#f0c050;
+  --machines:#60A5FA;--plants:#4ADE80;--wizards:#C084FC;
+  --text:#c8b87a;--dim:#3a4a2a;--mono:'Courier New',monospace
+}
+body{background:var(--bg);color:var(--text);font-family:'Nunito',sans-serif;min-height:100vh;overflow-x:hidden}
+
+/* ════════════════════════════════════════════════════════════════
+   LOGIN SCREEN
+═══════════════════════════════════════════════════════════════ */
+#login-screen{
+  position:fixed;inset:0;z-index:1000;
+  background:radial-gradient(ellipse at 50% 30%, #1a1208 0%, #07090f 70%);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0
+}
+.ls-stars{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+.ls-star{position:absolute;border-radius:50%;background:#fff;animation:twinkle var(--d,3s) var(--delay,0s) infinite alternate}
+@keyframes twinkle{0%{opacity:.1}100%{opacity:.7}}
+
+.ls-logo{
+  font-family:'Lilita One',cursive;font-size:36px;color:var(--gold);
+  letter-spacing:4px;text-shadow:0 0 40px #d4a03066;margin-bottom:6px;
+  animation:glow 3s ease-in-out infinite alternate
+}
+@keyframes glow{0%{text-shadow:0 0 20px #d4a03044}100%{text-shadow:0 0 50px #d4a030aa,0 0 80px #d4a03033}}
+.ls-sub{font-family:var(--mono);font-size:10px;color:#5a6a4a;letter-spacing:5px;margin-bottom:40px}
+.ls-lock{font-size:32px;margin-bottom:20px;filter:drop-shadow(0 0 8px #d4a03088)}
+
+.ls-box{
+  background:rgba(255,255,255,0.03);border:1px solid #2a3010;
+  border-radius:16px;padding:32px 40px;width:340px;
+  box-shadow:0 20px 60px rgba(0,0,0,0.6);backdrop-filter:blur(10px);
+  display:flex;flex-direction:column;gap:14px
+}
+.ls-title{font-family:'Lilita One',cursive;font-size:14px;color:var(--gold);letter-spacing:3px;text-align:center}
+.ls-hint{font-family:var(--mono);font-size:8px;color:#3a4a2a;letter-spacing:2px;text-align:center;margin-top:-6px}
+.ls-input{
+  background:rgba(0,0,0,0.4);border:1px solid #2a3428;border-radius:8px;
+  padding:10px 14px;font-family:var(--mono);font-size:12px;color:var(--text);
+  outline:none;transition:border-color .2s;letter-spacing:1px
+}
+.ls-input:focus{border-color:var(--gold-light)}
+.ls-btn{
+  padding:12px;border-radius:10px;
+  background:linear-gradient(135deg,#8a6518,var(--gold));
+  border:2px solid var(--gold-light);color:#07090f;
+  font-family:'Lilita One',cursive;font-size:13px;letter-spacing:3px;
+  cursor:pointer;box-shadow:0 4px 0 #4a3008;transition:filter .15s
+}
+.ls-btn:hover{filter:brightness(1.1)}
+.ls-btn:disabled{opacity:.4;cursor:not-allowed;filter:none}
+.ls-err{font-family:var(--mono);font-size:9px;color:#dd4444;letter-spacing:2px;text-align:center;min-height:14px}
+.ls-status{font-family:var(--mono);font-size:9px;color:#4a7a4a;letter-spacing:2px;text-align:center;min-height:14px}
+
+/* ════════════════════════════════════════════════════════════════
+   MAIN LAYOUT
+═══════════════════════════════════════════════════════════════ */
+#app{display:none}
+
+/* ── Top bar ── */
+#topbar{
+  background:linear-gradient(180deg,#c8a050,#8a5a20);
+  border-bottom:3px solid #5a3a1a;
+  padding:10px 24px;display:flex;align-items:center;justify-content:space-between;
+  position:sticky;top:0;z-index:100;box-shadow:0 2px 20px rgba(0,0,0,0.7)
+}
+.tb-left{display:flex;flex-direction:column}
+.tb-logo{font-family:'Lilita One',cursive;font-size:16px;color:#fff;letter-spacing:3px;text-shadow:2px 2px 0 #5a3000}
+.tb-sub{font-family:var(--mono);font-size:8px;color:#ffe0a0;letter-spacing:4px}
+.tb-right{display:flex;gap:8px;align-items:center}
+.tbtn{
+  background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.2);
+  border-radius:6px;padding:5px 12px;font-family:var(--mono);font-size:9px;
+  color:#ffe0a0;cursor:pointer;letter-spacing:1px;transition:background .15s
+}
+.tbtn:hover{background:rgba(255,255,255,0.12)}
+.tbtn.on{background:#c8a050;color:#07090f;border-color:#f0c050}
+#dev-user{font-family:var(--mono);font-size:8px;color:#ffe0a055;letter-spacing:1px}
+
+/* ── Content ── */
+#content{padding:28px 24px;max-width:1400px;margin:0 auto}
+
+/* ── Faction section ── */
+.faction-section{margin-bottom:48px}
+.faction-header{
+  display:flex;align-items:center;gap:16px;margin-bottom:20px;
+  padding:16px 24px;border-radius:14px;position:relative;overflow:hidden
+}
+.faction-header::before{
+  content:'';position:absolute;inset:0;opacity:.06;
+  background-image:var(--pattern);background-size:40px 40px
+}
+.fh-icon{font-size:36px;filter:drop-shadow(0 0 10px var(--fc))}
+.fh-text{flex:1}
+.fh-name{font-family:'Lilita One',cursive;font-size:22px;letter-spacing:3px;color:var(--fc);text-shadow:0 0 20px var(--fc-dim)}
+.fh-tagline{font-family:var(--mono);font-size:9px;color:var(--fc-dim);letter-spacing:3px;margin-top:3px}
+.fh-desc{font-size:11px;color:#8a9a7a;max-width:500px;line-height:1.6;margin-top:6px}
+.fh-stats{display:flex;flex-direction:column;gap:4px;text-align:right}
+.fh-stat-row{font-family:var(--mono);font-size:8px;color:#4a5a4a;letter-spacing:1px}
+.fh-stat-row span{color:var(--fc)}
+
+.faction-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(480px,1fr));gap:16px}
+
+/* ── Card ── */
+.card{
+  border-radius:16px;overflow:hidden;
+  box-shadow:0 6px 30px rgba(0,0,0,0.5);
+  border:1px solid var(--fc-dim);
+  background:var(--card-bg)
+}
+.card-header{
+  padding:12px 16px;display:flex;align-items:center;gap:10px;
+  border-bottom:1px solid var(--fc-dim);background:var(--header-bg)
+}
+.ch-icon{font-size:22px}
+.ch-info{flex:1}
+.ch-name{font-family:'Lilita One',cursive;font-size:15px;color:#e8d8a0;letter-spacing:2px}
+.ch-class{font-family:var(--mono);font-size:8px;color:var(--fc-dim2);letter-spacing:2px;margin-top:1px}
+.ch-badges{display:flex;flex-direction:column;gap:4px;align-items:flex-end}
+.tier-badge{
+  font-family:var(--mono);font-size:8px;letter-spacing:2px;padding:2px 8px;
+  border-radius:10px;border:1px solid var(--fc-dim2);color:var(--fc)
+}
+.unlock-badge{font-family:var(--mono);font-size:7px;color:#4a3a2a;letter-spacing:1px}
+
+.card-body{display:flex}
+
+/* ── 3D panel ── */
+.panel-3d{
+  width:196px;flex-shrink:0;
+  display:flex;flex-direction:column;align-items:center;
+  padding:12px 8px;gap:8px;border-right:1px solid var(--fc-dim)
+}
+.p3d-label{font-family:var(--mono);font-size:7px;color:var(--fc-dim2);letter-spacing:3px}
+.p3d-canvas{border-radius:10px;border:1px solid var(--fc-dim);display:block}
+.view-btns{display:flex;gap:4px}
+.vbtn{
+  font-family:var(--mono);font-size:7px;padding:3px 7px;border-radius:4px;
+  cursor:pointer;letter-spacing:1px;transition:all .15s;
+  background:rgba(0,0,0,0.4);border:1px solid #2a3428;color:#4a5a4a
+}
+.vbtn.on{background:rgba(0,0,0,0.6);border-color:var(--fc);color:var(--fc)}
+.vbtn:hover:not(.on){border-color:#4a5a4a;color:#8a9a8a}
+
+/* ── Sprite panel ── */
+.panel-sprite{flex:1;padding:12px;display:flex;flex-direction:column;gap:8px}
+
+.anim-btns{display:flex;gap:5px;flex-wrap:wrap}
+.abtn{
+  font-family:var(--mono);font-size:8px;padding:4px 10px;border-radius:6px;
+  cursor:pointer;letter-spacing:1px;transition:all .15s;
+  background:rgba(0,0,0,0.4);border:1px solid #2a3428;color:#4a5a4a
+}
+.abtn.on{background:rgba(0,0,0,0.6);border-color:var(--fc);color:var(--fc)}
+.abtn.missing{opacity:.3;cursor:not-allowed}
+.abtn:hover:not(.on):not(.missing){border-color:#4a5a4a;color:#8a9a8a}
+
+.sprite-wrap{
+  display:flex;align-items:center;justify-content:center;
+  background:#040608;border-radius:8px;border:1px solid #1a2010;
+  height:112px;position:relative;overflow:hidden
+}
+.sprite-canvas{image-rendering:pixelated;image-rendering:crisp-edges}
+.miss-overlay{
+  position:absolute;inset:0;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:4px;background:rgba(4,6,8,.88)
+}
+.miss-icon{font-size:18px}
+.miss-text{font-family:var(--mono);font-size:7px;color:#2a3a2a;letter-spacing:2px}
+
+.playbar{height:2px;background:#1a2010;border-radius:1px;overflow:hidden}
+.playbar-fill{height:100%;background:var(--fc);border-radius:1px;transition:width .05s linear}
+
+.frame-info{display:flex;justify-content:space-between;font-family:var(--mono);font-size:8px;color:#3a5a3a;letter-spacing:1px}
+.frame-info b{color:var(--fc)}
+
+/* ── Bio ── */
+.card-bio{
+  padding:10px 16px;border-top:1px solid var(--fc-dim);
+  font-size:10px;color:#6a7a5a;line-height:1.6;font-style:italic
+}
+
+/* ── Stats row ── */
+.stats-row{display:flex;border-top:1px solid var(--fc-dim)}
+.stat{
+  flex:1;padding:7px 0;text-align:center;
+  border-right:1px solid var(--fc-dim);
+  font-family:var(--mono);font-size:8px;color:#3a5a3a;letter-spacing:1px
+}
+.stat:last-child{border-right:none}
+.stat b{display:block;color:var(--fc);font-size:12px;margin-bottom:1px;font-weight:900}
+
+/* ── Divider ── */
+.section-divider{
+  height:1px;background:linear-gradient(90deg,transparent,var(--fc-dim2),transparent);
+  margin:32px 0 16px
+}
+</style>
+</head>
+<body>
+
+<!-- ════ LOGIN SCREEN ═══════════════════════════════════════════════════════ -->
+<div id="login-screen">
+  <div class="ls-stars" id="stars"></div>
+  <div class="ls-logo">PATH RAIDERS</div>
+  <div class="ls-sub">DEVELOPER PORTAL</div>
+  <div class="ls-lock">🔐</div>
+  <div class="ls-box">
+    <div class="ls-title">DEV ACCESS ONLY</div>
+    <div class="ls-hint">ENTER DEV PASSWORD TO CONTINUE</div>
+    <input class="ls-input" id="ls-pin" type="password" placeholder="Dev password" autocomplete="off">
+    <div class="ls-err" id="ls-err"></div>
+    <button class="ls-btn" id="ls-submit" onclick="devLogin()">ENTER DEV PORTAL</button>
+  </div>
+</div>
+
+<!-- ════ MAIN APP ══════════════════════════════════════════════════════════ -->
+<div id="app">
+  <div id="topbar">
+    <div class="tb-left">
+      <div class="tb-sub">DEVELOPER PREVIEW</div>
+      <div class="tb-logo">⚔ PATH RAIDERS — CHARACTER VIEWER</div>
+    </div>
+    <div class="tb-right">
+      <span style="font-family:var(--mono);font-size:9px;color:#ffe0a0;letter-spacing:1px">SPEED:</span>
+      <button class="tbtn"   onclick="setSpeed(0.5,this)">0.5×</button>
+      <button class="tbtn on" id="spd-1" onclick="setSpeed(1,this)">1×</button>
+      <button class="tbtn"   onclick="setSpeed(2,this)">2×</button>
+      <button class="tbtn"   id="pause-btn" onclick="togglePause()">⏸ PAUSE</button>
+      <button class="tbtn"   onclick="devLogout()" style="margin-left:8px;color:#dd6644">SIGN OUT</button>
+    </div>
+  </div>
+
+  <div id="content"></div>
+</div>
+
+<!-- ════ SCRIPTS ═══════════════════════════════════════════════════════════ -->
+<script type="importmap">
+{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js"}}
+</script>
+
+<script>
+// ── Star field ────────────────────────────────────────────────────────────
+const starsEl = document.getElementById('stars')
+for (let i = 0; i < 80; i++) {
+  const s = document.createElement('div')
+  s.className = 'ls-star'
+  const sz = Math.random() * 2 + 1
+  s.style.cssText = `width:${sz}px;height:${sz}px;left:${Math.random()*100}%;top:${Math.random()*100}%;--d:${2+Math.random()*4}s;--delay:${Math.random()*4}s`
+  starsEl.appendChild(s)
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three'
+
+// ── Dev PIN auth ───────────────────────────────────────────────────────────
+// To change the password, update the DEV_PASSWORD value below
+const DEV_PASSWORD = '9797987'
+const SESSION_KEY  = 'path_raiders_dev_auth'
+
+function showApp() {
+  document.getElementById('login-screen').style.display = 'none'
+  document.getElementById('app').style.display = 'block'
+  buildUI()
+}
+
+window.devLogin = function() {
+  const pin   = document.getElementById('ls-pin').value
+  const errEl = document.getElementById('ls-err')
+  if (pin === DEV_PASSWORD) {
+    sessionStorage.setItem(SESSION_KEY, '1')
+    showApp()
+  } else {
+    errEl.textContent = 'INCORRECT PASSWORD'
+    document.getElementById('ls-pin').value = ''
+    document.getElementById('ls-pin').focus()
+  }
+}
+
+window.devLogout = function() {
+  sessionStorage.removeItem(SESSION_KEY)
+  document.getElementById('app').style.display          = 'none'
+  document.getElementById('login-screen').style.display = 'flex'
+  document.getElementById('ls-err').textContent         = ''
+  document.getElementById('ls-pin').value               = ''
+}
+
+// Restore session if already authenticated this browser session
+if (sessionStorage.getItem(SESSION_KEY)) showApp()
+
+document.getElementById('ls-pin').addEventListener('keydown', e => { if (e.key === 'Enter') window.devLogin() })
+
+// ── Data ───────────────────────────────────────────────────────────────────
+
+const FACTIONS = [
+  {
+    key:     'machines',
+    name:    'The Iron Syndicate',
+    tagline: 'PRECISION · POWER · PROTOCOL',
+    icon:    '⚙️',
+    color:   '#60A5FA',
+    dim:     '#1a3a5a',
+    dim2:    '#2a5a8a',
+    bg:      'rgba(10,20,40,0.8)',
+    headerBg:'rgba(10,20,50,0.9)',
+    cardBg:  'rgba(8,14,28,0.9)',
+    pattern: "url(\"data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' stroke='%2360A5FA' stroke-width='0.5'%3E%3Cline x1='0' y1='20' x2='40' y2='20'/%3E%3Cline x1='20' y1='0' x2='20' y2='40'/%3E%3Ccircle cx='20' cy='20' r='4'/%3E%3C/g%3E%3C/svg%3E\")",
+    desc:    'Forged in automated foundries, the Iron Syndicate deploys precision-engineered combat units. Every component optimised for maximum battlefield efficiency. No mercy. No malfunction.',
+    units: [
+      {
+        id:      'scout_drone',
+        name:    'Scout Drone',
+        class:   'RECON CLASS — TIER I',
+        icon:    '🤖',
+        unlock:  'STARTER UNIT',
+        tier:    1, hp: 120, dmg: 45, speed: 'Fast', cost: 50,
+        bio:     'A nimble airborne chassis built for rapid path infiltration. Sacrifices armour plating for raw mobility. Excels at early pressure — deploy in groups to overwhelm before the enemy can respond.',
+        ability: 'OVERCLOCK: Briefly doubles movement speed when HP drops below 30%.',
+      },
+      {
+        id:      'assault_bot',
+        name:    'Assault Bot',
+        class:   'HEAVY CLASS — TIER II',
+        icon:    '🦾',
+        unlock:  'UNLOCK AT 2 WINS',
+        tier:    2, hp: 280, dmg: 90, speed: 'Medium', cost: 120,
+        bio:     'Reinforced exoskeleton built to breach fortified positions. Slow but devastating — each strike carries enough force to shatter reinforced walls. The backbone of any serious offensive.',
+        ability: 'SIEGE MODE: Deals 2× damage to walls and breakable terrain.',
+      },
+    ],
+  },
+  {
+    key:     'plants',
+    name:    'The Verdant Surge',
+    tagline: 'GROWTH · RESILIENCE · RECLAMATION',
+    icon:    '🌿',
+    color:   '#4ADE80',
+    dim:     '#1a4a2a',
+    dim2:    '#2a6a3a',
+    bg:      'rgba(8,20,12,0.8)',
+    headerBg:'rgba(8,22,14,0.9)',
+    cardBg:  'rgba(6,16,10,0.9)',
+    pattern: "url(\"data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' stroke='%234ADE80' stroke-width='0.5'%3E%3Cpath d='M0 40 Q10 20 20 20 Q30 20 40 0'/%3E%3Cpath d='M0 20 Q10 10 20 10 Q30 10 40 0'/%3E%3C/g%3E%3C/svg%3E\")",
+    desc:    'The Verdant Surge does not march — it grows. Living organisms engineered over millennia to reclaim any terrain. Where machines rust and wizards tire, the plants endure.',
+    units: [
+      {
+        id:      'vine_crawler',
+        name:    'Vine Crawler',
+        class:   'INFILTRATOR CLASS — TIER I',
+        icon:    '🌿',
+        unlock:  'STARTER UNIT',
+        tier:    1, hp: 100, dmg: 40, speed: 'Fast', cost: 50,
+        bio:     'A flexible vine-body that slips through the narrowest gaps. The fastest unit in the faction — arguably in the game. Fragile but relentless. Best used in swarms to overwhelm chokepoints before defences can react.',
+        ability: 'ROOT BURST: On death, spawns two brief root traps that slow nearby enemy units.',
+      },
+      {
+        id:      'thorn_beast',
+        name:    'Thorn Beast',
+        class:   'BRUTE CLASS — TIER II',
+        icon:    '🌵',
+        unlock:  'UNLOCK AT 3 WINS',
+        tier:    2, hp: 260, dmg: 95, speed: 'Medium', cost: 120,
+        bio:     'A dense wall of biological armour. Thorn-hide deflects glancing blows while bone-spines punish anything foolish enough to engage in close range. Slow but almost impossible to stop once momentum builds.',
+        ability: 'THORN AURA: Reflects 15 damage back to melee attackers on each hit received.',
+      },
+    ],
+  },
+  {
+    key:     'wizards',
+    name:    'The Arcane Conclave',
+    tagline: 'KNOWLEDGE · POWER · DOMINION',
+    icon:    '🔮',
+    color:   '#C084FC',
+    dim:     '#3a1a5a',
+    dim2:    '#5a2a8a',
+    bg:      'rgba(16,8,28,0.8)',
+    headerBg:'rgba(18,8,32,0.9)',
+    cardBg:  'rgba(12,6,22,0.9)',
+    pattern: "url(\"data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' stroke='%23C084FC' stroke-width='0.4'%3E%3Ccircle cx='20' cy='20' r='14'/%3E%3Ccircle cx='20' cy='20' r='7'/%3E%3Cline x1='20' y1='6' x2='20' y2='0'/%3E%3Cline x1='20' y1='34' x2='20' y2='40'/%3E%3Cline x1='6' y1='20' x2='0' y2='20'/%3E%3Cline x1='34' y1='20' x2='40' y2='20'/%3E%3C/g%3E%3C/svg%3E\")",
+    desc:    'The Arcane Conclave does not fight with bodies — it fights with knowledge crystallised into force. Centuries of study deployed in seconds. The most devastating faction when mastered; the most volatile when not.',
+    units: [
+      {
+        id:      'apprentice_mage',
+        name:    'Apprentice Mage',
+        class:   'ADEPT CLASS — TIER I',
+        icon:    '🔮',
+        unlock:  'STARTER UNIT',
+        tier:    1, hp: 90, dmg: 55, speed: 'Medium', cost: 50,
+        bio:     'Raw magical talent barely contained in a student\'s body. Erratic, explosive, and dangerously efficient per gold spent. The highest damage-to-cost ratio in the game — if they survive long enough to cast.',
+        ability: 'ARCANE SURGE: Every 4th attack deals 2× damage from magical overcharge.',
+      },
+      {
+        id:      'elementalist',
+        name:    'Elementalist',
+        class:   'ARCHMAGE CLASS — TIER II',
+        icon:    '✨',
+        unlock:  'UNLOCK AT 5 WINS',
+        tier:    2, hp: 240, dmg: 105, speed: 'Medium', cost: 120,
+        bio:     'Decades of study crystallised into combat mastery. Commands the fundamental forces — fire, ice, lightning — cycling between elements mid-battle. The most powerful single unit in the game and the most expensive to unlock.',
+        ability: 'ELEMENTAL CYCLE: Rotates between fire (AoE), ice (slow), and lightning (chain) on each attack.',
+      },
+    ],
+  },
+]
+
+const ANIM_DEFS = [
+  { key:'idle',   label:'IDLE',   fps:6  },
+  { key:'walk',   label:'WALK',   fps:10 },
+  { key:'attack', label:'ATTACK', fps:12 },
+  { key:'death',  label:'DEATH',  fps:10 },
+]
+
+// ── Global state ───────────────────────────────────────────────────────────
+let globalSpeed  = 1
+let globalPaused = false
+const viewers    = []
+
+// ── Build UI ───────────────────────────────────────────────────────────────
+
+let built = false
+function buildUI() {
+  if (built) return
+  built = true
+
+  const content = document.getElementById('content')
+  content.innerHTML = ''
+
+  for (const faction of FACTIONS) {
+    const section = document.createElement('div')
+    section.className = 'faction-section'
+    section.innerHTML = `
+      <div class="faction-header" style="background:${faction.bg};--pattern:${faction.pattern};--fc:${faction.color}">
+        <div class="fh-icon">${faction.icon}</div>
+        <div class="fh-text">
+          <div class="fh-name" style="color:${faction.color}">${faction.name.toUpperCase()}</div>
+          <div class="fh-tagline" style="color:${faction.dim2}">${faction.tagline}</div>
+          <div class="fh-desc">${faction.desc}</div>
+        </div>
+        <div class="fh-stats">
+          <div class="fh-stat-row">UNITS <span style="color:${faction.color}">${faction.units.length}</span></div>
+          <div class="fh-stat-row">STARTER <span style="color:${faction.color}">${faction.units.filter(u=>u.unlock==='STARTER UNIT').length}</span></div>
+          <div class="fh-stat-row">LOCKED <span style="color:${faction.color}">${faction.units.filter(u=>u.unlock!=='STARTER UNIT').length}</span></div>
+        </div>
+      </div>
+      <div class="faction-cards" id="fc-${faction.key}"></div>`
+    content.appendChild(section)
+
+    const cardGrid = section.querySelector(`#fc-${faction.key}`)
+    for (const unit of faction.units) {
+      const { el, viewer } = buildCard(unit, faction)
+      cardGrid.appendChild(el)
+      viewers.push(viewer)
+    }
+  }
+
+  requestAnimationFrame(loop)
+}
+
+// ── Card ───────────────────────────────────────────────────────────────────
+
+function buildCard(unit, faction) {
+  const isStarter = unit.unlock === 'STARTER UNIT'
+  const el = document.createElement('div')
+  el.className = 'card'
+  el.style.cssText = `--fc:${faction.color};--fc-dim:${faction.dim};--fc-dim2:${faction.dim2};--card-bg:${faction.cardBg};--header-bg:${faction.headerBg}`
+
+  el.innerHTML = `
+    <div class="card-header">
+      <div class="ch-icon">${unit.icon}</div>
+      <div class="ch-info">
+        <div class="ch-name">${unit.name.toUpperCase()}</div>
+        <div class="ch-class" style="color:${faction.dim2}">${unit.class}</div>
+      </div>
+      <div class="ch-badges">
+        <div class="tier-badge">TIER ${unit.tier}</div>
+        <div class="unlock-badge" style="color:${isStarter ? faction.color : '#5a4a2a'}">${unit.unlock}</div>
+      </div>
+    </div>
+
+    <div class="card-body">
+      <div class="panel-3d">
+        <div class="p3d-label">3D PREVIEW</div>
+        <canvas class="p3d-canvas" id="c3-${unit.id}" width="172" height="172"></canvas>
+        <div class="view-btns">
+          <button class="vbtn on" onclick="setView('${unit.id}','spin',this)">SPIN</button>
+          <button class="vbtn"    onclick="setView('${unit.id}','tilt',this)">TILT</button>
+          <button class="vbtn"    onclick="setView('${unit.id}','flat',this)">FLAT</button>
+        </div>
+      </div>
+
+      <div class="panel-sprite">
+        <div class="anim-btns" id="ab-${unit.id}"></div>
+        <div class="sprite-wrap">
+          <canvas class="sprite-canvas" id="cs-${unit.id}" width="192" height="96" style="width:96px;height:96px"></canvas>
+          <div class="miss-overlay" id="mo-${unit.id}" style="display:none">
+            <div class="miss-icon">🚫</div>
+            <div class="miss-text">FRAMES MISSING</div>
+            <div class="miss-text" style="color:#1a2a1a;font-size:6px">SEE SPRITE_PIPELINE.MD</div>
+          </div>
+        </div>
+        <div class="playbar"><div class="playbar-fill" id="pb-${unit.id}" style="width:0%"></div></div>
+        <div class="frame-info">
+          <div>ANIM: <b id="fi-a-${unit.id}">—</b></div>
+          <div>FRAME: <b id="fi-f-${unit.id}">—</b></div>
+          <div>FPS: <b id="fi-fps-${unit.id}">—</b></div>
+          <div>TOTAL: <b id="fi-t-${unit.id}">—</b></div>
+        </div>
+        <div style="font-family:var(--mono);font-size:8px;color:${faction.dim2};letter-spacing:1px;border-top:1px solid ${faction.dim};padding-top:6px;margin-top:2px">
+          ⚡ ${unit.ability}
+        </div>
+      </div>
+    </div>
+
+    <div class="card-bio">"${unit.bio}"</div>
+
+    <div class="stats-row">
+      <div class="stat"><b>${unit.hp}</b>HP</div>
+      <div class="stat"><b>${unit.dmg}</b>DMG</div>
+      <div class="stat"><b>${unit.speed}</b>SPD</div>
+      <div class="stat"><b>${unit.cost}g</b>COST</div>
+      <div class="stat"><b id="ft-${unit.id}">—</b>FRAMES</div>
+    </div>`
+
+  const viewer = {
+    id: unit.id, el, view: 'spin',
+    three: null,
+    frameData: {}, spriteSheet: null, spriteCtx: null,
+    currentAnim: 'idle', animFrame: 0, animTimer: 0,
+  }
+
+  // Load sprite data
+  fetch(`/assets/spritesheets/${unit.id}.json`)
+    .then(r => r.json())
+    .then(json => initSprite(viewer, json, faction))
+    .catch(() => showMissing(viewer, faction))
+
+  // Init Three.js
+  init3D(viewer, unit, faction)
+
+  return { el, viewer }
+}
+
+// ── Sprite ─────────────────────────────────────────────────────────────────
+
+function initSprite(viewer, json, faction) {
+  const frames = json.textures[0].frames
+  const groups = {}
+  for (const f of frames) {
+    const prefix = f.filename.replace(/_\d+$/, '')
+    if (!groups[prefix]) groups[prefix] = []
+    groups[prefix].push(f)
+  }
+  viewer.frameData = groups
+
+  const total = frames.length
+  const el = document.getElementById(`ft-${viewer.id}`)
+  if (el) el.textContent = total
+
+  const container = document.getElementById(`ab-${viewer.id}`)
+  for (const def of ANIM_DEFS) {
+    const has = !!groups[def.key]
+    const btn = document.createElement('button')
+    btn.className = `abtn${has ? '' : ' missing'}${def.key === 'idle' ? ' on' : ''}`
+    btn.textContent = def.label
+    if (has) btn.addEventListener('click', () => {
+      container.querySelectorAll('.abtn').forEach(b => b.classList.remove('on'))
+      btn.classList.add('on')
+      viewer.currentAnim = def.key
+      viewer.animFrame   = 0
+      viewer.animTimer   = 0
+    })
+    container.appendChild(btn)
+  }
+
+  viewer.spriteCtx = document.getElementById(`cs-${viewer.id}`).getContext('2d')
+  const img = new Image()
+  img.src = `/assets/spritesheets/${viewer.id}.png`
+  img.onload = () => { viewer.spriteSheet = img }
+}
+
+function showMissing(viewer, faction) {
+  const mo = document.getElementById(`mo-${viewer.id}`)
+  if (mo) mo.style.display = 'flex'
+  const ft = document.getElementById(`ft-${viewer.id}`)
+  if (ft) ft.textContent = '0'
+  const container = document.getElementById(`ab-${viewer.id}`)
+  for (const def of ANIM_DEFS) {
+    const btn = document.createElement('button')
+    btn.className = 'abtn missing'
+    btn.textContent = def.label
+    container.appendChild(btn)
+  }
+}
+
+function tickSprite(viewer, dt) {
+  if (!viewer.spriteSheet || !viewer.spriteCtx) return
+  const frames = viewer.frameData[viewer.currentAnim]
+  if (!frames || !frames.length) return
+
+  const def = ANIM_DEFS.find(d => d.key === viewer.currentAnim)
+  const fps = (def?.fps ?? 8) * globalSpeed
+  viewer.animTimer += dt
+  if (viewer.animTimer >= 1000 / fps) {
+    viewer.animTimer -= 1000 / fps
+    viewer.animFrame  = (viewer.animFrame + 1) % frames.length
+  }
+
+  const f   = frames[viewer.animFrame]
+  const ctx = viewer.spriteCtx
+  ctx.clearRect(0, 0, 192, 96)
+  ctx.imageSmoothingEnabled = false
+  const scale = 2, dw = f.frame.w * scale, dh = f.frame.h * scale
+  ctx.drawImage(viewer.spriteSheet, f.frame.x, f.frame.y, f.frame.w, f.frame.h, (192-dw)/2, (96-dh)/2, dw, dh)
+
+  const fiA   = document.getElementById(`fi-a-${viewer.id}`)
+  const fiF   = document.getElementById(`fi-f-${viewer.id}`)
+  const fiFps = document.getElementById(`fi-fps-${viewer.id}`)
+  const fiT   = document.getElementById(`fi-t-${viewer.id}`)
+  if (fiA)   fiA.textContent   = viewer.currentAnim.toUpperCase()
+  if (fiF)   fiF.textContent   = `${viewer.animFrame+1}/${frames.length}`
+  if (fiFps) fiFps.textContent = Math.round(fps)
+  if (fiT) {
+    const total = Object.values(viewer.frameData).reduce((s,a) => s + a.length, 0)
+    fiT.textContent = total
+  }
+  const pb = document.getElementById(`pb-${viewer.id}`)
+  if (pb) pb.style.width = ((viewer.animFrame+1)/frames.length*100) + '%'
+}
+
+// ── Three.js ───────────────────────────────────────────────────────────────
+
+function init3D(viewer, unit, faction) {
+  const canvas   = document.getElementById(`c3-${unit.id}`)
+  const renderer = new THREE.WebGLRenderer({ canvas, alpha:true, antialias:true })
+  renderer.setSize(172, 172)
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+  renderer.setClearColor(0x000000, 0)
+
+  const scene  = new THREE.Scene()
+  const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 100)
+  camera.position.set(0, 0.4, 3.4)
+  camera.lookAt(0, 0, 0)
+
+  const ambientLight = new THREE.AmbientLight(0xffffff, 0.4)
+  scene.add(ambientLight)
+
+  const factionHex = parseInt(faction.color.replace('#',''), 16)
+  const keyLight   = new THREE.PointLight(factionHex, 3, 12)
+  keyLight.position.set(2, 2.5, 2)
+  scene.add(keyLight)
+
+  const rimLight = new THREE.PointLight(0xffffff, 0.6, 8)
+  rimLight.position.set(-2, 0, 1)
+  scene.add(rimLight)
+
+  // Ground glow disk
+  const glowGeo = new THREE.CircleGeometry(0.8, 32)
+  const glowMat = new THREE.MeshBasicMaterial({ color: factionHex, transparent: true, opacity: 0.08 })
+  const glow    = new THREE.Mesh(glowGeo, glowMat)
+  glow.rotation.x = -Math.PI / 2
+  glow.position.y = -0.82
+  scene.add(glow)
+
+  // Shadow disk
+  const shadowMat = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.4 })
+  const shadow    = new THREE.Mesh(new THREE.CircleGeometry(0.55, 32), shadowMat)
+  shadow.rotation.x = -Math.PI / 2
+  shadow.position.y = -0.81
+  scene.add(shadow)
+
+  // Load character texture
+  const loader = new THREE.TextureLoader()
+  const geo    = new THREE.PlaneGeometry(1.7, 1.7)
+
+  function makeMesh(texture) {
+    const mat  = new THREE.MeshStandardMaterial({ map: texture, transparent: true, side: THREE.DoubleSide, alphaTest: 0.05, roughness: 0.6, metalness: 0.1 })
+    const mesh = new THREE.Mesh(geo, mat)
+    mesh.rotation.x = -0.22
+    scene.add(mesh)
+    viewer.three = { renderer, scene, camera, mesh, keyLight, shadow, t: 0 }
+  }
+
+  loader.load(
+    `/assets/characters/${unit.id}.png`,
+    tex => { tex.colorSpace = THREE.SRGBColorSpace; makeMesh(tex) },
+    undefined,
+    () => {
+      // Fallback coloured plane
+      const mat  = new THREE.MeshStandardMaterial({ color: factionHex, transparent: true, opacity: 0.7, roughness: 0.5 })
+      const mesh = new THREE.Mesh(geo, mat)
+      mesh.rotation.x = -0.22
+      scene.add(mesh)
+      viewer.three = { renderer, scene, camera, mesh, keyLight, shadow, t: 0 }
+    }
+  )
+
+  viewer.three = { renderer, scene, camera, mesh: null, keyLight, shadow, t: 0 }
+}
+
+function tick3D(viewer, dt) {
+  const v = viewer.three
+  if (!v) return
+  const spd = globalPaused ? 0 : globalSpeed
+  v.t += dt / 1000
+
+  if (v.mesh) {
+    if (viewer.view === 'spin') {
+      v.mesh.rotation.y += 0.007 * spd
+    } else if (viewer.view === 'tilt') {
+      v.mesh.rotation.y = Math.sin(v.t * 0.55 * spd) * 0.45
+      v.mesh.rotation.x = -0.22 + Math.sin(v.t * 0.35 * spd) * 0.08
+    } else {
+      v.mesh.rotation.y = 0
+      v.mesh.rotation.x = -0.18
+    }
+    v.mesh.position.y = Math.sin(v.t * 1.9 * spd) * 0.055
+    v.shadow.scale.x  = 0.9 + Math.sin(v.t * 1.9 * spd) * 0.08
+    v.shadow.scale.z  = 0.9 + Math.sin(v.t * 1.9 * spd) * 0.08
+  }
+
+  v.keyLight.position.x = Math.cos(v.t * 0.45 * spd) * 2
+  v.keyLight.position.z = 2 + Math.sin(v.t * 0.45 * spd) * 0.6
+  v.renderer.render(v.scene, v.camera)
+}
+
+// ── Controls ───────────────────────────────────────────────────────────────
+
+window.setView = (id, mode, btn) => {
+  const v = viewers.find(v => v.id === id)
+  if (!v) return
+  v.view = mode
+  btn.closest('.view-btns').querySelectorAll('.vbtn').forEach(b => b.classList.remove('on'))
+  btn.classList.add('on')
+}
+
+window.setSpeed = (s, btn) => {
+  globalSpeed = s
+  document.querySelectorAll('.tbtn:not(#pause-btn):not([onclick*="Logout"])').forEach(b => b.classList.remove('on'))
+  btn.classList.add('on')
+}
+
+window.togglePause = () => {
+  globalPaused = !globalPaused
+  const btn = document.getElementById('pause-btn')
+  btn.textContent = globalPaused ? '▶ RESUME' : '⏸ PAUSE'
+  btn.classList.toggle('on', globalPaused)
+}
+
+// ── Loop ───────────────────────────────────────────────────────────────────
+
+let last = performance.now()
+function loop(now) {
+  const dt = Math.min(now - last, 100)
+  last = now
+  for (const v of viewers) {
+    if (!globalPaused) tickSprite(v, dt)
+    tick3D(v, dt)
+  }
+  requestAnimationFrame(loop)
+}
+</script>
+</body>
+</html>
