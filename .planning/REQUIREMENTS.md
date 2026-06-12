@@ -62,7 +62,7 @@ requirements below are systems/logic, and UI tasks mean *integrating* those desi
 ---
 
 ## Future Requirements (deferred to v2.x)
-- Reconnect-into-match (resume an in-progress battle after a drop) — lifecycle-heavy; revisit once Phase C/D lifecycle exists.
+- Reconnect-into-match (resume an in-progress battle after a drop) — lifecycle-heavy; revisit once Phase 13/14 lifecycle exists.
 - Global leaderboards / ranked ladder / seasons — needs RANK to be live and stable first.
 - Engagement-tuned matchmaking — start with honest fairness.
 
@@ -77,7 +77,41 @@ requirements below are systems/logic, and UI tasks mean *integrating* those desi
 
 ## Traceability
 
-(Filled by the roadmapper — maps each REQ-ID to its phase.)
+Every v2.0 requirement maps to exactly one phase. Coverage: 30/30.
+
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| FND-01 | Phase 9 — Backend Foundations & Integrity | Pending |
+| FND-02 | Phase 9 — Backend Foundations & Integrity | Pending |
+| FND-03 | Phase 9 — Backend Foundations & Integrity | Pending |
+| FND-04 | Phase 9 — Backend Foundations & Integrity | Pending |
+| FND-05 | Phase 9 — Backend Foundations & Integrity | Pending |
+| BATTLE-02 | Phase 10 — Services & Simulation Refactor | Pending |
+| ACCT-01 | Phase 11 — Accounts & Economy | Pending |
+| ACCT-02 | Phase 11 — Accounts & Economy | Pending |
+| ACCT-03 | Phase 11 — Accounts & Economy | Pending |
+| ACCT-04 | Phase 11 — Accounts & Economy | Pending |
+| ECON-01 | Phase 11 — Accounts & Economy | Pending |
+| ECON-02 | Phase 11 — Accounts & Economy | Pending |
+| ECON-03 | Phase 11 — Accounts & Economy | Pending |
+| ECON-04 | Phase 11 — Accounts & Economy | Pending |
+| ECON-05 | Phase 11 — Accounts & Economy | Pending |
+| PROG-01 | Phase 12 — Progression & Upgrades | Pending |
+| PROG-02 | Phase 12 — Progression & Upgrades | Pending |
+| PROG-03 | Phase 12 — Progression & Upgrades | Pending |
+| PROG-04 | Phase 12 — Progression & Upgrades | Pending |
+| MM-01 | Phase 13 — Matchmaking & Ranking | Pending |
+| MM-02 | Phase 13 — Matchmaking & Ranking | Pending |
+| MM-03 | Phase 13 — Matchmaking & Ranking | Pending |
+| MM-04 | Phase 13 — Matchmaking & Ranking | Pending |
+| MM-05 | Phase 13 — Matchmaking & Ranking | Pending |
+| RANK-01 | Phase 13 — Matchmaking & Ranking | Pending |
+| RANK-02 | Phase 13 — Matchmaking & Ranking | Pending |
+| HIST-01 | Phase 13 — Matchmaking & Ranking | Pending |
+| BATTLE-01 | Phase 14 — Battle Authority & Result Validation | Pending |
+| BATTLE-03 | Phase 14 — Battle Authority & Result Validation | Pending |
+| BATTLE-04 | Phase 14 — Battle Authority & Result Validation | Pending |
 
 ---
 *Defined: 2026-06-12 for milestone v2.0*
+*Traceability mapped: 2026-06-12*
