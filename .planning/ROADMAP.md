@@ -95,7 +95,12 @@ UI from scratch.
   4. Currency grants are idempotent and balances can never go negative or be double-spent (server-enforced atomic writes; retry credits once).
   5. Existing v1.0 `profiles` rows (wins, unlocked units) are migrated forward into the new model with no data loss.
 
-**Plans**: TBD
+**Plans**: 5 plans
+- [ ] 11-01-PLAN.md — Wave 0: esc() XSS helper + economy unit tests + RED RLS/settlement/migration scaffolds
+- [ ] 11-02-PLAN.md — Authoritative schema: inventory/match_results reshape, match_settlements, 4 SECURITY DEFINER RPCs, v1.0 backfill + [BLOCKING] schema apply
+- [ ] 11-03-PLAN.md — Services seam: inventory/settlement/profile clients; retire client-authoritative unlock from account.ts
+- [ ] 11-04-PLAN.md — RLS proof: GREEN idempotency/concurrency/forged-grant/mismatch/migration tests against live schema
+- [ ] 11-05-PLAN.md — Scene wiring: retire recordResult, submit match report, escape username, provision_account, profile + spend-to-unlock
 **UI hint**: yes
 
 ### Phase 12: Progression & Upgrades
