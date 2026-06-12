@@ -140,6 +140,10 @@ This phase is a pure refactor — it creates new files but installs zero new dep
 │      create/move/destroy UnitView                                │
 │      update HP bars                                              │
 │                                                                  │
+│  3b. Per-attack audio (continuous-state read)                    │
+│      monitor world units for attackCd resets                     │
+│      → audio.playHit() (no sim event; scene-side only)           │
+│                                                                  │
 │  4. Play events                                                   │
 │      death → kill animation (UnitView)                           │
 │      wall_break → audio + camera shake + path recompute          │
@@ -280,6 +284,8 @@ type SimEvent =
 | `base_hit` | `GameScene.damageBase(:546/:556)` | Sim decrements `world.hostBaseHp/guestBaseHp`, emits event |
 | `game_over` | `GameScene.triggerGameOver(:585)` | Sim sets `world.over = true`, emits event |
 
+Note: per-attack `audio.playHit()` (`:484`) is deliberately NOT a sim event — it is high-frequency continuous-state feedback monitored scene-side via attackCd resets (see Open Question Q2 RESOLVED).
+
 ### Pattern 3: `step()` function structure
 
 ```typescript
@@ -402,10 +408,12 @@ type SimInput =
 - **Writing to gameState inside the sim:** `step()` must never touch `gameState`. The scene reads `world` after `step()` returns and updates `gameState` selectively (only if cross-scene persistence is needed — but battle fields no longer need it).
 - **Importing Phaser in `src/sim/`:** Creates Phaser dependency in Node-land test runner. All Phaser types must stay in `src/units/UnitView.ts`, `src/towers/TowerView.ts`, and `src/scenes/GameScene.ts`.
 - **Importing supabase in `src/sim/`:** Verified: the supabase client is currently imported at GameScene.ts:2. The sim must never import it.
+- **Importing audio in `src/sim/`:** The sim must never import `src/lib/audio`. Per-attack `audio.playHit()` is reproduced scene-side via attackCd-reset monitoring (Q2 RESOLVED), not via a sim audio event.
 - **Reconcile by array position:** The renderer must reconcile by `SimUnit.id`, not by position in `hostUnits[]`. Array order changes when units die and are pruned.
 - **Mutating world.mutableOver from the renderer:** Only `step()` should mutate world state. The renderer is read-only.
 - **Using `Unit.takeDamage` to trigger death animation from inside sim:** `takeDamage` in the current `Unit` class directly spawns Phaser tweens (`:117-144`). The sim must return a `unit_died` event; the renderer plays the animation.
 - **Losing the `wallTarget` guard:** The current `updateUnits` checks `unit.wallTarget` first, before combat scan. This order is load-bearing — a unit targeting a wall should not also engage in combat that frame. Preserve this in `processUnits`.
+- **Dropping per-attack attack SFX:** The old `audio.playHit()` at `:484` is player-observable. Moving combat into the sim must NOT silently delete it — the scene must keep firing it via the attackCd-reset monitor. Dropping it is a visible behavior change that fails SC#1.
 
 ---
 
@@ -478,7 +486,7 @@ Every one-shot in GameScene that the renderer/network needs:
 | `base_hit` | `damageBase()` | `:546/:556` | Camera shake, audio, HUD update | Broadcast `base_hp` |
 | `game_over` | `triggerGameOver()` | `:585` | `showResultOverlay()`, audio | Broadcast `game_over` if not practice; call `recordResult` |
 
-No other one-shot events exist. Gold and timer are continuous state (HUD polls `world.gold`, `world.timeLeft`).
+No other one-shot events exist. Gold and timer are continuous state (HUD polls `world.gold`, `world.timeLeft`). Per-attack `audio.playHit()` (`:484`) is also continuous state, monitored scene-side via attackCd resets (Q2 RESOLVED) — it is intentionally NOT a sim event, to keep the event stream small per D-03.
 
 ### Q4: Network preservation — wire protocol byte-preserved
 
@@ -622,6 +630,9 @@ Current `:456`: `if (!unit.active || unit.isDead()) continue`. `active` is a Pha
 **Risk 7: `recomputeUnitPath` called from within `processUnits`**
 Walls can break mid-frame, triggering `recomputeUnitPath` for ALL units (`:789-790`). In the sim, `breakWall` (called from within the unit-processing loop via `damageWall`) must accumulate path-recompute requests and apply them after the unit loop, not inline. Otherwise a unit processed later in the same frame gets a freshly-recomputed path, while units processed earlier did not. The current GameScene has this same behavior — it calls `recomputeUnitPath` immediately — but it's low-risk because wall-breaks are rare. The safest extraction preserves the current behavior (immediate recompute).
 
+**Risk 8: Per-attack `audio.playHit()` dropped during combat extraction**
+The combat tick that fires `audio.playHit()` at `:484` moves into the sim, but the sim cannot import audio. If the extraction simply deletes the call, attack SFX vanish — a player-visible regression that fails SC#1. The scene must reproduce it by monitoring sim-owned `attackCd` for resets each frame (see Q2 RESOLVED). Preserve this with a `prevAttackCds` map keyed by unit id.
+
 **Recommended extraction sequence (lowest risk at each step):**
 
 1. **Extract towers module first** (D-09/D-10): `TowerData.ts` + `TowerView.ts`. Replace the `TowerDef` interface and inline tower creation with `TowerData` constants. The `this.towers` array becomes `SimTower[]` objects. Towers are the simplest entity — stationary, no pathfinding, no state besides `cd`. Run `tsc` after.
@@ -634,7 +645,7 @@ Walls can break mid-frame, triggering `recomputeUnitPath` for ALL units (`:789-7
 
 5. **Extract movement + path logic** into sim: `moveUnit()`, `isAtGoal()`, `setWaypoints()`. Write D-17 (a) movement test.
 
-6. **Extract `step.ts`** combining gold/timer/AI/units/towers. Wire `GameScene.update` to call `step()`. At this point `GameScene` keeps `UnitView` reconcile and event-to-SFX/network mapping.
+6. **Extract `step.ts`** combining gold/timer/AI/units/towers. Wire `GameScene.update` to call `step()`. At this point `GameScene` keeps `UnitView` reconcile, the per-attack audio monitor, and event-to-SFX/network mapping.
 
 7. **Write D-17 (c) and (d) tests** (win conditions, wall-break detour).
 
@@ -709,7 +720,7 @@ private updateUnits(dt: number) {
         if (unit.attackCd <= 0) {
           unit.attackCd = unit.attackRate
           blocker.takeDamage(unit.def.dmg)  // → sim sets blocker.hp, blocker.dead; if dead, push unit_died event
-          audio.playHit()  // → scene plays on each attack tick (NOT tied to unit_died event)
+          audio.playHit()  // → scene plays on each attack tick via attackCd-reset monitor (NOT a sim event)
         }
         continue
       }
@@ -855,19 +866,19 @@ export function resolveSide(role: 'host' | 'guest', playerFaction: Faction) {
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **`UnitView` identifier: class field or new param?**
+1. **`UnitView` identifier: class field or new param?** — RESOLVED by Plan 03 Task 1: `id` is passed as a `UnitView` constructor parameter (`constructor(scene, id: string, def, laneSlot, dir)`), keyed into the `Map<string, UnitView>` registry. The id source is a deterministic monotonic counter on the world (`world.nextId++`) per the recommendation below.
    - What we know: `SimUnit.id` is a new field (doesn't exist on current `Unit`). The view registry is `Map<string, UnitView>`.
    - What's unclear: Whether `id` is a UUID, an integer counter, or something else. The planner should choose.
    - Recommendation: Simple monotonic integer counter (`world.nextId++` in `createWorld`) is deterministic and zero-overhead. Pass it as a constructor param to `SimUnit`.
 
-2. **Where does `audio.playHit()` live after extraction?**
+2. **Where does `audio.playHit()` live after extraction?** — RESOLVED as scene-side attackCd-reset monitoring (Plan 03 Task 2): the scene keeps a `prevAttackCds: Map<string, number>` (unit id → last frame's attackCd) and, after `step()` + reconcile, calls `audio.playHit()` once for any live unit whose `attackCd` just reset upward this frame (the cooldown fired). The sim emits NO per-hit audio event — keeping the event stream small per D-03 and the sim audio-free. This preserves the player-observable attack SFX required by SC#1.
    - What we know: Currently called at GameScene.ts:484 (attack lands) and GameScene.ts:469 (wall hit). These are inside the unit-processing loop, which moves to the sim. But the sim cannot import `audio`.
    - What's unclear: Should the sim emit a distinct `unit_attacked` event per hit (many per frame), or should the scene track attack events separately?
    - Recommendation: Keep audio calls in the scene by having the scene monitor `world.hostUnits`/`guestUnits` for `attackCd` resets each frame (continuous state read), rather than emitting a `unit_attacked` event per hit. The `base_hit` and `wall_break` events are sufficient for the named events; attack sounds are high-frequency continuous-state feedback.
 
-3. **Snapshot update workflow for the team**
+3. **Snapshot update workflow for the team** — RESOLVED by Plan 05 Task 2: snapshot drift is treated as a blocking failure (default Vitest behavior), and `npx vitest run --update-snapshots` (alias `vitest -u`) is documented as the intentional re-lock command in the Plan 05 test/snapshot workflow.
    - What we know: Vitest snapshot files are committed to git under `__snapshots__/`. The characterization snapshot captures the world state after a scripted battle.
    - What's unclear: The project has a single dev (the user). Whether snapshot drift is treated as a blocking failure or a warning.
    - Recommendation: Treat snapshot failure as blocking (the default Vitest behavior). Document that `vitest --update-snapshots` is the intentional re-lock command.
