@@ -1,7 +1,9 @@
 import Phaser from 'phaser'
 import gameState from '../lib/gameState'
 import { supabase } from '../lib/supabase'
-import { recordMatchResult } from '../lib/api/account'
+import { reportMatchResult } from '../lib/api/settlement'
+import { getBalance } from '../lib/api/wallet'
+import { esc } from '../lib/escapeHtml'
 import { UNITS } from '../units/UnitData'
 import { UnitView } from '../units/UnitView'
 import { resolveSide } from '../lib/sideHelper'
@@ -432,46 +434,36 @@ export class GameScene extends Phaser.Scene {
     else if (!isTie)  audio.playDefeat()
 
     if (!this.isPractice) {
-      void this.recordResult(playerWon ? 'win' : isTie ? 'tie' : 'loss')
+      void this.submitMatchReport(playerWon, winner)
     }
 
     this.showResultOverlay(playerWon, isTie, winner)
   }
 
-  private async recordResult(result: 'win' | 'loss' | 'tie') {
-    if (!gameState.userId) return
-    const payload = await recordMatchResult(gameState.userId, result)
-    if (!payload) return
+  // Submit only a winner CLAIM to the server (ECON-02, D-11): the old client-side
+  // result write + win-milestone unlock is retired (P10 D-13 handoff). The server
+  // settles when both players' reports agree; the client never writes wins/unlocks.
+  private async submitMatchReport(playerWon: boolean, winner: 'host' | 'guest' | 'tie') {
+    if (!gameState.userId || !gameState.roomId || winner === 'tie') return
 
-    gameState.wins          = payload.wins
-    gameState.losses        = payload.losses
-    gameState.unlockedUnits = payload.unlockedUnits
+    // Derive the winner's UUID from the role→identity mapping. The sim's game_over
+    // event (P10 D-04) reports role labels ('host'|'guest'|'tie'); we map the
+    // winning role to a UUID: if WE won it's our userId, else it's the opponent.
+    const weAreWinner = winner === gameState.role
+    const winnerId = weAreWinner ? gameState.userId : gameState.opponentId
 
-    if (payload.newlyUnlocked.length > 0) this.showUnlockNotification(payload.newlyUnlocked)
-  }
+    // Skip settlement if the opponent UUID was never hydrated (T-11-18): a forged
+    // or missing opponentId must not produce a bogus winner claim.
+    if (!winnerId) return
 
-  private showUnlockNotification(units: string[]) {
-    const names = units.map(id => UNITS.find(u => u.id === id)?.name ?? id).join(', ')
-    const el = document.createElement('div')
-    el.id = 'gh-unlock'
-    el.innerHTML = `
-<style>
-@keyframes unlock-in{from{opacity:0;transform:translateY(30px) scale(0.85)}to{opacity:1;transform:translateY(0) scale(1)}}
-#gh-unlock{
-  position:fixed;bottom:80px;left:50%;transform:translateX(-50%);
-  background:linear-gradient(135deg,#1a0e00,#2a1800);
-  border:2px solid #f0c050;border-radius:14px;
-  padding:16px 28px;text-align:center;z-index:9999;
-  animation:unlock-in 0.4s cubic-bezier(0.34,1.56,0.64,1) forwards;
-  box-shadow:0 0 30px #f0c05066;
-}
-#gh-unlock .ul-title{font-family:'Lilita One',cursive;font-size:15px;color:#f0c050;letter-spacing:3px;margin-bottom:6px;}
-#gh-unlock .ul-names{font-family:monospace;font-size:12px;color:#e8d8a0;letter-spacing:1px;}
-</style>
-<div class="ul-title">&#9733; UNIT UNLOCKED &#9733;</div>
-<div class="ul-names">${names}</div>`
-    document.body.appendChild(el)
-    setTimeout(() => el.remove(), 4000)
+    await reportMatchResult(gameState.roomId, winnerId)
+
+    const newBalance = await getBalance(gameState.userId)
+    if (newBalance !== null) gameState.walletBalance = newBalance
+
+    // Reference playerWon so the signature stays explicit at the call site even
+    // though winnerId already encodes the outcome.
+    void playerWon
   }
 
   private showResultOverlay(won: boolean, tie: boolean, _winner: 'host' | 'guest' | 'tie') {
@@ -669,7 +661,7 @@ export class GameScene extends Phaser.Scene {
     const faction  = gameState.playerFaction ?? 'machines'
     const fIcon    = FAC_ICON[faction]  ?? '&#9876;'
     const fName    = faction.replace('_', ' ').toUpperCase()
-    const username = gameState.username ?? 'PLAYER'
+    const username = esc(gameState.username ?? 'PLAYER')
     const role     = gameState.role ?? 'host'
     const mapName  = this.mapDef?.name ?? 'MAP'
 
