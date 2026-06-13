@@ -629,6 +629,10 @@ export class AuthScene extends Phaser.Scene {
         })
         if (profileErrMsg) { setErr('PROFILE CREATION FAILED'); btn.textContent = '⚔ JOIN THE RAID'; btn.disabled = false; return }
 
+        // Provision wallet + welcome grant for the new account (ACCT-01, D-02).
+        // Non-fatal: if it fails, the deploy-time backfill migration still provisions.
+        await supabase.rpc('provision_account', { p_user_id: userId })
+
         gameState.userId = userId
         gameState.username = step1Data!.name
         gameState.playerFaction = selectedFaction
@@ -867,6 +871,10 @@ export class AuthScene extends Phaser.Scene {
       })
 
       if (saveErrMsg) { setErr('SAVE FAILED — TRY AGAIN'); btn.textContent = 'ENTER THE BATTLEFIELD ⚔'; btn.disabled = false; return }
+
+      // Provision wallet + welcome grant for the onboarded account (ACCT-01, D-02).
+      // Non-fatal: if it fails, the deploy-time backfill migration still provisions.
+      await supabase.rpc('provision_account', { p_user_id: gameState.userId! })
 
       gameState.username = name
       gameState.playerFaction = selectedFaction
