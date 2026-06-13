@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Persistent Game Foundations
-status: phase_complete
-stopped_at: Completed 10-05-PLAN.md (win + wall-break + characterization-snapshot sim tests D-15/D-17; D-16 manual two-session parity gate approved by user) — Phase 10 COMPLETE
-last_updated: "2026-06-13T00:00:00Z"
+status: planning
+stopped_at: Phase 12 context gathered
+last_updated: "2026-06-13T07:48:39.843Z"
 last_activity: 2026-06-13 -- Phase 10 Plan 05 executed; Phase 10 complete
 progress:
   total_phases: 6
   completed_phases: 2
   total_plans: 16
-  completed_plans: 11
+  completed_plans: 15
   percent: 33
 ---
 
@@ -79,11 +79,13 @@ Open follow-ups (non-blocking, by design):
 
 ## Session Continuity
 
-Last session: 2026-06-13
-Stopped at: Completed 10-05-PLAN.md — the final Phase 10 plan. Win-by-timer + win-by-base-reach
+Last session: 2026-06-13T07:48:39.838Z
+Stopped at: Phase 12 context gathered
 (D-17c), wall-break detour through the pathfinder (D-17d), and the deterministic characterization
 snapshot (D-15) are committed and green; the full vitest suite is 47/47. The D-16 manual two-session
+
 + practice parity gate was run and **approved by the user (2026-06-13)** — "no player-visible behavior
+
 change" confirmed, only the D-07 id-tiebreak micro-change accepted. **Phase 10 is COMPLETE**
 (ROADMAP SC#1-4 all satisfied). **Next: Phase 11 (accounts-economy)** — already context-gathered;
 it builds on Phase 10's read-through gameState + the recordResult-authority handoff (P10 D-13).
