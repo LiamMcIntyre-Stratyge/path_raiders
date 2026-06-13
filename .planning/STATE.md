@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Persistent Game Foundations
-status: planning
-stopped_at: Phase 12 context gathered
-last_updated: "2026-06-13T07:48:39.843Z"
-last_activity: 2026-06-13 -- Phase 10 Plan 05 executed; Phase 10 complete
+status: executing
+stopped_at: Phase 11 (accounts-economy) implemented — all 5 plans authored, build green; 2 verifications pending on remote createUser fix
+last_updated: "2026-06-13"
+last_activity: 2026-06-13 -- Phase 11 executed (waves 1-4); migration pushed to remote; RLS-green + in-app verify blocked on auth.users createUser DB error
 progress:
   total_phases: 6
   completed_phases: 2
   total_plans: 16
-  completed_plans: 15
-  percent: 33
+  completed_plans: 18
+  percent: 50
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-12)
 
 **Core value:** The realtime lane battle is the heart of the game; every meta-system (accounts, economy, progression, matchmaking) exists to make that loop matter over time.
-**Current focus:** Phase 10 COMPLETE — next: Phase 11 (accounts-economy)
+**Current focus:** Phase 11 (accounts-economy) — implemented; 2 verifications pending on remote DB fix
 
 ## Current Position
 
-Phase: 10 (services-simulation-refactor) — ✅ COMPLETE (all 5 plans + D-16 parity gate)
-Plan: 5 of 5 executed (10-01 … 10-05 complete)
-Status: Phase 10 complete; ready to plan Phase 11 (accounts-economy, already context-gathered)
-Last activity: 2026-06-13 -- Phase 10 Plan 05 executed; Phase 10 complete
+Phase: 11 (accounts-economy) — ◆ IMPLEMENTED, verification pending
+Plan: 5 of 5 authored (11-01…11-05). 11-01/02/03 fully done; 11-04 (RLS GREEN) + 11-05 Task 4 (in-app verify) blocked on remote createUser DB error.
+Status: Migration pushed to remote Supabase (user "applied"). Build green (tsc + vite build). API seam + scene wiring complete; client unlock authority retired; username XSS-escaped.
+Last activity: 2026-06-13 -- Phase 11 executed (waves 1-4)
 
-Progress: [███░░░░░░░] 33% (Phases 9 & 10 complete; 11/16 plans)
+Progress: [█████░░░░░] 50% (Phases 9 & 10 complete; Phase 11 implemented, verifying)
 
 Open follow-ups (non-blocking, by design):
 
@@ -59,10 +59,15 @@ Open follow-ups (non-blocking, by design):
 - [Phase 10-03]: Supabase wire protocol preserved byte-for-byte (deploy/wall_break/base_hp/game_over); received deploy/wall_break → sim inputs; received base_hp overwrites world HP directly (D-04/D-12)
 - [Phase 10-04]: gameState reduced to a session + read-through profile cache (D-14) — removed hostBaseHp/guestBaseHp/gold/dead gameMode from GameStateType + the singleton; the sim SimWorld is the sole source of truth for live battle state (D-12); recordResult/recordMatchResult write path unchanged (D-13)
 - [Phase 10-04]: STARTING_GOLD exported from src/sim/world.ts as the single gold-default source; createWorld + LobbyScene HUD consume it; GameScene.init no longer seeds world gold from gameState.gold (no cross-scene gold persistence)
+- [Phase 11]: Economy is server-authoritative via SECURITY DEFINER RPCs (spend_unlock, report_match_result, provision_account, credit_wallet_for_user) with search_path='' + RLS deny-by-default on wallet/inventory/match_results/match_settlements; constants embedded in SQL only (WIN_REWARD=50/LOSS_REWARD=15/WELCOME_GRANT=100/unit cost=100)
+- [Phase 11]: Settlement requires BOTH players' reports to agree (idempotent per match_id via match_settlements ON CONFLICT + GET DIAGNOSTICS); mismatch→void, lone→pending; winner identified by claimed_winner UUID, never auth.uid() (mutual collusion = accepted interim risk D-05, hardened in P14)
+- [Phase 11-05]: Client recordResult/win-milestone unlock RETIRED (P10 D-13 handoff) — GameScene submits a winner claim via reportMatchResult after game_over; winner derived from sim role→UUID, skips settlement if opponentId not a valid UUID (no forged self-win on loss); username esc()-escaped at GameScene+LobbyScene innerHTML sites (stored-XSS closed, D-14); ProfileScene data/behavior wired to getProfileFull+spendUnlock (visual design user-owned)
+- [Phase 11]: Migration applied to REMOTE Supabase via `supabase db push` (user decision — no local Docker); RLS suite runs against the cloud DB (env mapped from .env.local for local runs, CI injects directly)
 
 ### Blockers
 
-- None.
+- **Remote `auth.users` createUser fails** (`500 unexpected_failure: "Database error creating new user"`) on the linked Supabase project (obcwvyaqdihdhcldewpe). Blocks 11-04 (full RLS suite GREEN) and 11-05 Task 4 (in-app earn→spend/XSS verify). Almost certainly a dashboard-created `on auth.users` trigger/function that raises (no such trigger in migrations). Diagnose via Supabase MCP `get_logs`(auth) + `execute_sql` on pg_trigger, or paste the trigger body. NOT an email-confirmation issue (tests use admin createUser email_confirm:true).
+- **Security follow-up (.env.local):** service-role key is stored as `VITE__SUPABASE_SERVICE_ROLE_KEY` — `VITE_` prefix means Vite would bundle the secret into the client if any `src/` reads it. Rename to a non-`VITE_` name; confirm no `src/` reference. Vitest also doesn't auto-load `.env.local`; RLS env (`SUPABASE_URL/ANON_KEY/SERVICE_ROLE_KEY`) must be exported (CI) or mapped for local runs.
 
 ### Todos
 
@@ -79,18 +84,17 @@ Open follow-ups (non-blocking, by design):
 
 ## Session Continuity
 
-Last session: 2026-06-13T07:48:39.838Z
-Stopped at: Phase 12 context gathered
-(D-17c), wall-break detour through the pathfinder (D-17d), and the deterministic characterization
-snapshot (D-15) are committed and green; the full vitest suite is 47/47. The D-16 manual two-session
-
-+ practice parity gate was run and **approved by the user (2026-06-13)** — "no player-visible behavior
-
-change" confirmed, only the D-07 id-tiebreak micro-change accepted. **Phase 10 is COMPLETE**
-(ROADMAP SC#1-4 all satisfied). **Next: Phase 11 (accounts-economy)** — already context-gathered;
-it builds on Phase 10's read-through gameState + the recordResult-authority handoff (P10 D-13).
-Recommended next step: /gsd:plan-phase 11 (CONTEXT.md exists) or /gsd:verify-work 10 for a formal
-phase verification first.
+Last session: 2026-06-13
+Stopped at: **Phase 11 (accounts-economy) executed** — all 5 plans authored and committed (waves 1-4),
+build green (tsc + vite build). 11-01 (esc helper + unit tests GREEN + RLS scaffolds), 11-02 (accounts/economy
+migration — pushed to remote by user), 11-03 (typed API seam; client-authoritative unlock retired), 11-04
+(RLS suite assertions authored), 11-05 (scene wiring: opponentId/walletBalance, reportMatchResult, esc XSS,
+provision_account on signup, ProfileScene). **Two verifications remain, both blocked on the remote
+`auth.users` createUser DB error** (see Blockers): 11-04 full RLS suite GREEN, and 11-05 Task 4 in-app
+earn→spend/XSS verify.
+**Next:** (1) fix remote createUser (Supabase MCP get_logs/execute_sql on the auth.users trigger), then
+(2) run `npx vitest run --project rls` GREEN (env mapped from .env.local), then (3) `npm run dev` Task-4 in-app
+verify, then (4) /gsd:verify-work 11. Also rename VITE__SUPABASE_SERVICE_ROLE_KEY → non-VITE_ (security).
 Resume file (P11 context): .planning/phases/11-accounts-economy/11-CONTEXT.md
 
 ✓ Resolved 2026-06-12: Reworded REQUIREMENTS.md (FND-02) + ROADMAP.md (Phase 9 Goal/SC#2)

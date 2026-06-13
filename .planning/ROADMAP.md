@@ -33,7 +33,7 @@ UI from scratch.
 
 - [x] **Phase 9: Backend Foundations & Integrity** - Committed migrations, RLS, real identity, secret-leak guard, and a test harness — make the backend reviewable and safe (completed 2026-06-12)
 - [x] **Phase 10: Services & Simulation Refactor** - Extract a typed services layer and a pure `src/sim/` battle module; behavior-preserving de-risking refactor (completed 2026-06-13)
-- [ ] **Phase 11: Accounts & Economy** - Server-truth accounts, profiles, wallet, and unit unlocks; first real authority move on the safe non-realtime surface
+- [~] **Phase 11: Accounts & Economy** - Server-truth accounts, profiles, wallet, and unit unlocks; first real authority move on the safe non-realtime surface _(IMPLEMENTED — 5/5 plans, build green; pending: RLS-suite GREEN + in-app verify, both blocked on remote createUser DB error)_
 - [ ] **Phase 12: Progression & Upgrades** - Server-side level-based unit/tower upgrades that persist and feed back into battle stats
 - [ ] **Phase 13: Matchmaking & Ranking** - Quick Match with hidden-MMR pairing, race-safe match lifecycle, visible trophy rank, and match history
 - [ ] **Phase 14: Battle Authority & Result Validation** - Determinism pass plus server-validated match reports settling rewards, progression, and rating
