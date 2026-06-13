@@ -71,9 +71,12 @@ jobs:
         with:
           version: 2.106.0
 
-      # Boot the local Postgres + Auth + PostgREST stack (blocks until healthy)
+      # Boot the local Postgres + PostgREST stack (blocks until healthy). The RLS suite
+      # talks only to Postgres + PostgREST (it seeds auth.users via SQL and mints its own
+      # JWTs), so exclude studio/imgproxy/edge-runtime/analytics — their containers add no
+      # value here and edge-runtime/analytics health checks intermittently 502 in CI.
       - name: supabase start
-        run: supabase start
+        run: supabase start -x studio,imgproxy,edge-runtime,logflare,vector
 
       # Apply all migrations in supabase/migrations/ (creates wallet, RLS, credit RPC, etc.)
       - name: supabase db reset
