@@ -32,7 +32,7 @@ UI from scratch.
 - Decimal phases (e.g. 11.1): Urgent insertions (marked INSERTED)
 
 - [x] **Phase 9: Backend Foundations & Integrity** - Committed migrations, RLS, real identity, secret-leak guard, and a test harness — make the backend reviewable and safe (completed 2026-06-12)
-- [ ] **Phase 10: Services & Simulation Refactor** - Extract a typed services layer and a pure `src/sim/` battle module; behavior-preserving de-risking refactor
+- [x] **Phase 10: Services & Simulation Refactor** - Extract a typed services layer and a pure `src/sim/` battle module; behavior-preserving de-risking refactor (completed 2026-06-13)
 - [ ] **Phase 11: Accounts & Economy** - Server-truth accounts, profiles, wallet, and unit unlocks; first real authority move on the safe non-realtime surface
 - [ ] **Phase 12: Progression & Upgrades** - Server-side level-based unit/tower upgrades that persist and feed back into battle stats
 - [ ] **Phase 13: Matchmaking & Ranking** - Quick Match with hidden-MMR pairing, race-safe match lifecycle, visible trophy rank, and match history
@@ -80,7 +80,7 @@ UI from scratch.
   - [x] 10-02-PLAN.md — Pure src/sim/ core: types + createWorld + combat (test-first, D-07 tiebreak) + step() single tick entry with injected rng (D-01/D-06/D-08)
   - [x] 10-03-PLAN.md — Wire GameScene to the sim: UnitView split, id-reconcile, event mapping, wire protocol preserved (D-02/D-03/D-04)
   - [x] 10-04-PLAN.md — Slim gameState to a session/profile read-through cache; sim world is the battle source of truth (D-12/D-13/D-14)
-  - [ ] 10-05-PLAN.md — Win + wall-break + characterization-snapshot tests (D-15/D-17) + manual two-session parity gate (D-16)
+  - [x] 10-05-PLAN.md — Win + wall-break + characterization-snapshot tests (D-15/D-17) + manual two-session parity gate (D-16)
 
 ### Phase 11: Accounts & Economy
 
