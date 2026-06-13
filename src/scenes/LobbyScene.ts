@@ -2,6 +2,7 @@ import Phaser from 'phaser'
 import { supabase } from '../lib/supabase'
 import { createRoom, findRoomByCode, joinRoom } from '../lib/api/rooms'
 import gameState from '../lib/gameState'
+import { esc } from '../lib/escapeHtml'
 import { STARTING_GOLD } from '../sim/world'
 import type { Faction } from '../types'
 import type { RealtimeChannel } from '@supabase/supabase-js'
@@ -64,6 +65,13 @@ function generateRoomCode(): string {
   return Array.from({ length: 6 }, () => chars[Math.floor(Math.random() * chars.length)]).join('')
 }
 
+// UUID v4-shape guard (Open Question 2 / T-11-18): only trust an opponentId that
+// looks like a real auth.users UUID before it is used downstream for settlement.
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+function asOpponentId(value: string | null | undefined): string | null {
+  return value && UUID_RE.test(value) ? value : null
+}
+
 // ─── LobbyScene ───────────────────────────────────────────────────────────────
 export class LobbyScene extends Phaser.Scene {
   private overlay!: HTMLDivElement
@@ -98,7 +106,7 @@ export class LobbyScene extends Phaser.Scene {
   private showLobby() {
     const faction = gameState.playerFaction ?? 'machines'
     const fm = FACTION_META[faction]
-    const username = gameState.username ?? 'COMMANDER'
+    const username = esc(gameState.username ?? 'COMMANDER')
 
     const gameModes = [
       { id: '1v1', label: '1v1 RANKED', icon: '⚔', color: T.gold, desc: 'Solo ranked match · ELO rating' },
@@ -381,6 +389,7 @@ export class LobbyScene extends Phaser.Scene {
             const updated = payload.new as { guest_id?: string; guest_faction?: string; state?: string }
             if (updated.guest_id) {
               // Guest has joined — transition to placement
+              gameState.opponentId = asOpponentId(updated.guest_id)  // host learns guest UUID here
               gameState.playerFaction = faction
               this.cleanupChannel()
               this.scene.start('PlacementScene', {
@@ -430,6 +439,7 @@ export class LobbyScene extends Phaser.Scene {
 
       gameState.roomId = room.id
       gameState.role = 'guest'
+      gameState.opponentId = asOpponentId(room.host_id)  // guest knows the host UUID at join time
       gameState.playerFaction = faction
 
       this.cleanupChannel()

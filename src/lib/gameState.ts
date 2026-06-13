@@ -18,6 +18,8 @@ const gameState: GameStateType = {
   losses: 0,
   roomId: null,
   role: null,
+  opponentId: null,    // hydrated from rooms.host_id / rooms.guest_id at LobbyScene join
+  walletBalance: 0,    // refreshed from getBalance after match settlement
   mapId: null,
   hostSlot: null,
   guestSlot: null,

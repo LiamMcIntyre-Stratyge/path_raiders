@@ -35,6 +35,8 @@ export interface GameStateType {
   losses: number
   roomId: string | null
   role: 'host' | 'guest' | null
+  opponentId: string | null   // opponent's UUID, null until room joined; hydrated from rooms.host_id/guest_id (ACCT-01)
+  walletBalance: number       // soft-currency balance cache; refreshed from getBalance after settlement (ECON-02)
   mapId: number | null
   hostSlot: number | null   // 0 | 1 | 2
   guestSlot: number | null  // 0 | 1 | 2
