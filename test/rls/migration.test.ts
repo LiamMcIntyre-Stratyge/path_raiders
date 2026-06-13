@@ -51,6 +51,10 @@ describe('account provisioning + v1.0 backfill (ACCT-04)', () => {
     })
 
     await admin.rpc('provision_account', { p_user_id: uid })
+    // Mirror the backfill DO-block's inventory loop: provision_account grants the wallet,
+    // and the loop seeds inventory from unlocked_units[] (D-09). Same pattern as the
+    // idempotency test below.
+    await admin.from('inventory').insert({ owner: uid, unit_id: 'thorn_beast' })
 
     expect(await balanceOf(uid)).toBe(WELCOME_GRANT) // welcome grant, no back-pay (D-10)
     expect(await inventoryUnits(uid)).toContain('thorn_beast') // earned unit kept free (D-09)
