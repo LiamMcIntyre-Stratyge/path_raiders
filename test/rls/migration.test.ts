@@ -1,9 +1,5 @@
-import { createClient } from '@supabase/supabase-js'
-import { beforeAll, describe, expect, it } from 'vitest'
-
-// Keys come from `supabase status -o env` in CI — NEVER imported from src/
-const URL = process.env.SUPABASE_URL!
-const SERVICE = process.env.SUPABASE_SERVICE_ROLE_KEY! // CI env ONLY — never in src/
+import { describe, expect, it } from 'vitest'
+import { makeAdmin, seedUser } from './helpers.ts'
 
 // Welcome grant constant (D-02 / D-04). Authoritative copy lives in the SQL RPC
 // (provision_account → credit_wallet_for_user(…, 100, 'welcome:'||uid)); mirror is
@@ -18,16 +14,13 @@ const WELCOME_GRANT = 100
 // looped over every profile (ensure wallet row → idempotent welcome grant → seed
 // inventory from unlocked_units[]). Exercising provision_account here proves the
 // per-profile backfill semantics the DO-block applies in bulk.
-const admin = createClient(URL, SERVICE, { auth: { persistSession: false } })
+const admin = makeAdmin()
 
 async function makeAuthUser(tag: string): Promise<string> {
-  const email = `tmig_${tag}_${Date.now()}@example.test`
-  const { data } = await admin.auth.admin.createUser({
-    email,
-    password: 'pw-123456',
-    email_confirm: true,
-  })
-  return data.user!.id
+  // provision_account takes an explicit p_user_id, so we only need the auth.users
+  // row to exist (FK target) — no session/token required here.
+  const { id } = await seedUser(admin, `tmig_${tag}`)
+  return id
 }
 
 async function balanceOf(id: string): Promise<number> {
@@ -40,11 +33,8 @@ async function inventoryUnits(id: string): Promise<string[]> {
   return (data ?? []).map(r => r.unit_id as string)
 }
 
-beforeAll(() => {
-  // Per-test fixtures are created inline (each test provisions a distinct user),
-  // so no shared setup is required here.
-})
-
+// Per-test fixtures are created inline (each test provisions a distinct user),
+// so no shared beforeAll setup is required.
 describe('account provisioning + v1.0 backfill (ACCT-04)', () => {
   // ACCT-04 / existing player: backfill grants wallet=100 (welcome grant, no back-pay D-10),
   // seeds inventory from unlocked_units[] (D-09: earned units kept free), and leaves

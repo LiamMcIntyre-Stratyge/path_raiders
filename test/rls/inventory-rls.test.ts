@@ -1,16 +1,10 @@
-import { createClient } from '@supabase/supabase-js'
+import type { SupabaseClient } from '@supabase/supabase-js'
 import { beforeAll, describe, expect, it } from 'vitest'
-
-// Keys come from `supabase status -o env` in CI — NEVER imported from src/
-const URL = process.env.SUPABASE_URL!
-const ANON = process.env.SUPABASE_ANON_KEY!
-const SERVICE = process.env.SUPABASE_SERVICE_ROLE_KEY! // CI env ONLY — never in src/
+import { makeAdmin, seedUser } from './helpers.ts'
 
 // Admin/service-role client for fixtures and re-reads.
-// persistSession: false prevents the shared jsdom localStorage from contaminating
-// the service-role credentials with the signed-in user's session (Pitfall 4).
-const admin = createClient(URL, SERVICE, { auth: { persistSession: false } })
-let user: ReturnType<typeof createClient>
+const admin = makeAdmin()
+let user: SupabaseClient
 let userId: string
 
 // Server-derived soft-currency unit cost (D-04). The authoritative copy lives in the
@@ -46,12 +40,7 @@ async function inventoryRows(id: string, unitId: string): Promise<string[]> {
 }
 
 beforeAll(async () => {
-  const email = `tinv_${Date.now()}@example.test`
-  await admin.auth.admin.createUser({ email, password: 'pw-123456', email_confirm: true })
-  user = createClient(URL, ANON, { auth: { persistSession: true } })
-  await user.auth.signInWithPassword({ email, password: 'pw-123456' })
-  const { data: u } = await user.auth.getUser()
-  userId = u.user!.id
+  ;({ id: userId, client: user } = await seedUser(admin, 'tinv'))
   // Seed a legit balance of 100 (== one unit cost) via the SECURITY DEFINER RPC —
   // the only authorised writer of wallet.balance (Pitfall 1).
   await user.rpc('credit_wallet', { p_amount: UNIT_COST, p_idempotency_key: 'seed' })
@@ -103,12 +92,7 @@ describe('inventory RLS + spend_unlock (ECON-03/04/05)', () => {
   // UPDATE ... WHERE balance >= cost means only ONE of two concurrent calls can succeed.
   // Result: deducted exactly once, balance ends at 0 (never negative), exactly one inventory row.
   it('concurrent spend_unlock deducts exactly once and never goes negative (ECON-04)', async () => {
-    const email = `tinv2_${Date.now()}@example.test`
-    await admin.auth.admin.createUser({ email, password: 'pw-123456', email_confirm: true })
-    const u2 = createClient(URL, ANON, { auth: { persistSession: false } })
-    await u2.auth.signInWithPassword({ email, password: 'pw-123456' })
-    const { data: who } = await u2.auth.getUser()
-    const u2Id = who.user!.id
+    const { id: u2Id, client: u2 } = await seedUser(admin, 'tinv2')
     // Seed exactly one unit cost so only one of two concurrent calls can succeed.
     await u2.rpc('credit_wallet', { p_amount: UNIT_COST, p_idempotency_key: 'seed2' })
 

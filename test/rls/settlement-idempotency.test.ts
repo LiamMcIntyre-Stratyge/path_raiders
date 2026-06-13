@@ -1,10 +1,6 @@
-import { createClient } from '@supabase/supabase-js'
+import type { SupabaseClient } from '@supabase/supabase-js'
 import { beforeAll, describe, expect, it } from 'vitest'
-
-// Keys come from `supabase status -o env` in CI — NEVER imported from src/
-const URL = process.env.SUPABASE_URL!
-const ANON = process.env.SUPABASE_ANON_KEY!
-const SERVICE = process.env.SUPABASE_SERVICE_ROLE_KEY! // CI env ONLY — never in src/
+import { makeAdmin, seedUser } from './helpers.ts'
 
 // Server-derived reward constants (D-04). The authoritative copies live in the
 // report_match_result SQL RPC (… values (…, 50, 15)); these mirrors are assertion-only.
@@ -24,9 +20,9 @@ function asReport(data: unknown): ReportResult {
   return data as unknown as ReportResult
 }
 
-const admin = createClient(URL, SERVICE, { auth: { persistSession: false } })
-let userA: ReturnType<typeof createClient>
-let userB: ReturnType<typeof createClient>
+const admin = makeAdmin()
+let userA: SupabaseClient
+let userB: SupabaseClient
 let aId: string
 let bId: string
 
@@ -49,21 +45,10 @@ async function settlementRows(matchId: string): Promise<unknown[]> {
 }
 
 beforeAll(async () => {
-  // User A (own ANON client — PATTERNS lines 597-614 two-user setup)
-  const emailA = `ta_${Date.now()}@example.test`
-  await admin.auth.admin.createUser({ email: emailA, password: 'pw-123456', email_confirm: true })
-  userA = createClient(URL, ANON, { auth: { persistSession: false } })
-  await userA.auth.signInWithPassword({ email: emailA, password: 'pw-123456' })
-  const { data: ua } = await userA.auth.getUser()
-  aId = ua.user!.id
-
-  // User B (own ANON client)
-  const emailB = `tb_${Date.now()}@example.test`
-  await admin.auth.admin.createUser({ email: emailB, password: 'pw-123456', email_confirm: true })
-  userB = createClient(URL, ANON, { auth: { persistSession: false } })
-  await userB.auth.signInWithPassword({ email: emailB, password: 'pw-123456' })
-  const { data: ub } = await userB.auth.getUser()
-  bId = ub.user!.id
+  // Two independent seeded users, each with its own minted-token ANON client
+  // (replaces admin.auth.admin.createUser — the GoTrue admin API is unavailable).
+  ;({ id: aId, client: userA } = await seedUser(admin, 'ta'))
+  ;({ id: bId, client: userB } = await seedUser(admin, 'tb'))
 })
 
 describe('settlement idempotency + both-agree (ECON-01/02/04, D-06/D-08)', () => {

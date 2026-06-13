@@ -79,10 +79,22 @@ jobs:
       - name: supabase db reset
         run: supabase db reset
 
-      # Export the local stack's URL + keys into GITHUB_ENV so vitest can read them
-      # Produces: SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY (verify A1)
+      # Export the local stack's URL + keys into GITHUB_ENV under the exact names the
+      # RLS suite reads. `supabase status -o env` emits unprefixed keys (API_URL, ANON_KEY,
+      # SERVICE_ROLE_KEY, JWT_SECRET), so we source them and re-map (tolerating either an
+      # un-prefixed or already-SUPABASE_-prefixed dump). JWT_SECRET lets the suite mint the
+      # signed `authenticated` tokens that stand in for GoTrue sessions.
       - name: export supabase env
-        run: supabase status -o env >> "$GITHUB_ENV"
+        run: |
+          supabase status -o env > /tmp/sb.env
+          cat /tmp/sb.env
+          set -a; source /tmp/sb.env; set +a
+          {
+            echo "SUPABASE_URL=${API_URL:-${SUPABASE_URL:-}}"
+            echo "SUPABASE_ANON_KEY=${ANON_KEY:-${SUPABASE_ANON_KEY:-}}"
+            echo "SUPABASE_SERVICE_ROLE_KEY=${SERVICE_ROLE_KEY:-${SUPABASE_SERVICE_ROLE_KEY:-}}"
+            echo "SUPABASE_JWT_SECRET=${JWT_SECRET:-${SUPABASE_JWT_SECRET:-}}"
+          } >> "$GITHUB_ENV"
 
       # Run the RLS integration tests against the live local stack (Pitfall 5: stack up first)
       - name: vitest rls
