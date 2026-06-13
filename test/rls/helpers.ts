@@ -60,9 +60,13 @@ export async function seedUser(
   const { error } = await admin.rpc('test_create_user', { p_id: id, p_email: email })
   if (error) throw new Error(`test_create_user(${tag}) failed: ${error.message}`)
   const token = mintToken(id)
+  // Use the `accessToken` option, NOT global.headers.Authorization: supabase-js's
+  // fetchWithAuth resolves the Authorization header from _getAccessToken() on every
+  // request, which (with no GoTrue session) overrides a global header with the anon key.
+  // _getAccessToken() returns accessToken() verbatim, so our minted `authenticated`
+  // token is sent and auth.uid() resolves to `id`. (client.auth.* must not be used.)
   const client = createClient(URL, ANON, {
-    auth: { persistSession: false, autoRefreshToken: false },
-    global: { headers: { Authorization: `Bearer ${token}` } },
+    accessToken: async () => token,
   })
   return { id, client }
 }
