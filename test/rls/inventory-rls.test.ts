@@ -42,8 +42,9 @@ async function inventoryRows(id: string, unitId: string): Promise<string[]> {
 beforeAll(async () => {
   ;({ id: userId, client: user } = await seedUser(admin, 'tinv'))
   // Seed a legit balance of 100 (== one unit cost) via the SECURITY DEFINER RPC —
-  // the only authorised writer of wallet.balance (Pitfall 1).
-  await user.rpc('credit_wallet', { p_amount: UNIT_COST, p_idempotency_key: 'seed' })
+  // the only authorised writer of wallet.balance (Pitfall 1). Key namespaced by user id
+  // because wallet_credits.idempotency_key is a global PK (avoids cross-file collisions).
+  await user.rpc('credit_wallet', { p_amount: UNIT_COST, p_idempotency_key: `seed:${userId}` })
 })
 
 describe('inventory RLS + spend_unlock (ECON-03/04/05)', () => {
@@ -76,7 +77,7 @@ describe('inventory RLS + spend_unlock (ECON-03/04/05)', () => {
   // so the deny is driven by funds, not an unknown-unit exception.
   it('spend_unlock returns insufficient_funds when balance < cost and does not deduct (ECON-03)', async () => {
     // After the previous test balance is 0; top up to 50 (< 100 cost).
-    await user.rpc('credit_wallet', { p_amount: 50, p_idempotency_key: 'topup-50' })
+    await user.rpc('credit_wallet', { p_amount: 50, p_idempotency_key: `topup-50:${userId}` })
     expect(await balanceOf(userId)).toBe(50)
 
     const { data } = await user.rpc('spend_unlock', { p_unit_id: 'thorn_beast' })
@@ -94,7 +95,7 @@ describe('inventory RLS + spend_unlock (ECON-03/04/05)', () => {
   it('concurrent spend_unlock deducts exactly once and never goes negative (ECON-04)', async () => {
     const { id: u2Id, client: u2 } = await seedUser(admin, 'tinv2')
     // Seed exactly one unit cost so only one of two concurrent calls can succeed.
-    await u2.rpc('credit_wallet', { p_amount: UNIT_COST, p_idempotency_key: 'seed2' })
+    await u2.rpc('credit_wallet', { p_amount: UNIT_COST, p_idempotency_key: `seed2:${u2Id}` })
 
     const results = await Promise.all([
       u2.rpc('spend_unlock', { p_unit_id: 'elementalist' }),

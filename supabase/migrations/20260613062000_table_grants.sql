@@ -21,3 +21,8 @@ grant all on table
   public.match_results,
   public.match_settlements
 to authenticated, service_role;
+
+-- provision_account is the admin/backfill entry point (explicit p_user_id, no auth.uid()).
+-- It was granted to `authenticated` (signup path) only; also allow `service_role` so the
+-- backfill/admin caller can provision an arbitrary account, matching its v1.0 use.
+grant execute on function public.provision_account(uuid) to service_role;

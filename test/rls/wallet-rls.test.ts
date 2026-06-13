@@ -11,8 +11,11 @@ beforeAll(async () => {
   // Seeded user UUID + minted-token client (replaces admin.auth.admin.createUser —
   // the GoTrue admin API is unavailable in our target environments).
   ;({ id: userId, client: user } = await seedUser(admin, 't'))
-  // Seed a legit balance of 100 via the SECURITY DEFINER RPC (the only authorised writer)
-  await user.rpc('credit_wallet', { p_amount: 100, p_idempotency_key: 'seed' })
+  // Seed a legit balance of 100 via the SECURITY DEFINER RPC (the only authorised writer).
+  // wallet_credits.idempotency_key is a GLOBAL primary key, so keys are namespaced by the
+  // (random) user id — otherwise a literal like 'seed' collides across test files and the
+  // second credit no-ops.
+  await user.rpc('credit_wallet', { p_amount: 100, p_idempotency_key: `seed:${userId}` })
 })
 
 describe('wallet RLS', () => {
@@ -35,10 +38,10 @@ describe('wallet RLS', () => {
   })
 
   it('credits are idempotent (same key credits once, not twice)', async () => {
-    // First call: credits 50 under key 'k1'
-    await user.rpc('credit_wallet', { p_amount: 50, p_idempotency_key: 'k1' })
+    // First call: credits 50 under this user's 'k1' key
+    await user.rpc('credit_wallet', { p_amount: 50, p_idempotency_key: `k1:${userId}` })
     // Retry with the same key — idempotency ledger rejects the duplicate
-    await user.rpc('credit_wallet', { p_amount: 50, p_idempotency_key: 'k1' })
+    await user.rpc('credit_wallet', { p_amount: 50, p_idempotency_key: `k1:${userId}` })
     // Re-read as service-role: should be 100 (seed) + 50 (once), not 200
     const { data } = await admin
       .from('wallet')

@@ -158,28 +158,31 @@ describe('settlement idempotency + both-agree (ECON-01/02/04, D-06/D-08)', () =>
     expect(await balanceOf(aId)).toBe(aBefore) // no credit on a lone report
   })
 
-  // ECON-02: reward is server-derived. The RPC signature only accepts p_match_id +
-  // p_claimed_winner; a malicious extra p_amount must never change the credited amount
-  // from the server constants (50 / 15).
-  it('reward is server-derived: an extra client-passed amount is ignored (ECON-02)', async () => {
-    const matchId = newMatchId()
+  // ECON-02: reward is server-derived — a client cannot supply the credited amount. The
+  // RPC signature is (p_match_id, p_claimed_winner) only; there is no amount parameter, so
+  // a forged p_amount can never override the server constants (50 / 15).
+  it('reward is server-derived: a client cannot supply the credited amount (ECON-02)', async () => {
+    const forgedMatch = newMatchId()
     const aBefore = await balanceOf(aId)
     const bBefore = await balanceOf(bId)
 
-    // Even if a malicious client passes p_amount, the RPC ignores it and credits the
-    // fixed server constants. (PostgREST binds named args to the function signature;
-    // p_amount is not a parameter, so it is dropped.)
-    await userA.rpc('report_match_result', {
-      p_match_id: matchId,
+    // A client that tries to pass p_amount is rejected: PostgREST resolves the function by
+    // its argument names and there is no overload taking p_amount, so the call never runs
+    // (the client can't inject a reward amount at all).
+    const forged = await userA.rpc('report_match_result', {
+      p_match_id: forgedMatch,
       p_claimed_winner: aId,
       p_amount: 999999,
     } as unknown as { p_match_id: string; p_claimed_winner: string })
-    await userB.rpc('report_match_result', {
-      p_match_id: matchId,
-      p_claimed_winner: aId,
-      p_amount: 999999,
-    } as unknown as { p_match_id: string; p_claimed_winner: string })
+    expect(forged.error).not.toBeNull() // unknown extra arg rejected
+    expect(await settlementRows(forgedMatch)).toHaveLength(0) // nothing settled
+    expect(await balanceOf(aId)).toBe(aBefore) // nobody credited
+    expect(await balanceOf(bId)).toBe(bBefore)
 
+    // A normal settlement (no client amount) credits exactly the server constants.
+    const cleanMatch = newMatchId()
+    await userA.rpc('report_match_result', { p_match_id: cleanMatch, p_claimed_winner: aId })
+    await userB.rpc('report_match_result', { p_match_id: cleanMatch, p_claimed_winner: aId })
     expect(await balanceOf(aId)).toBe(aBefore + WIN_REWARD) // server constant 50, not 999999
     expect(await balanceOf(bId)).toBe(bBefore + LOSS_REWARD) // server constant 15
   })
