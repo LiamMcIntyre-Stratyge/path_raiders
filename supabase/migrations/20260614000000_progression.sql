@@ -182,3 +182,11 @@ $$;
 -- Revoke from public (no anonymous access); grant to authenticated only.
 revoke all on function public.upgrade_spend(text, text) from public;
 grant  execute on function public.upgrade_spend(text, text) to authenticated;
+
+-- Table privileges for the read-via-RLS path (getOwnLevels). The select-own policy is the
+-- row gate, but the role must still HOLD table privileges or the read fails with 42501.
+-- 20260613062000_table_grants.sql granted public.upgrades, but this migration (re)creates the
+-- table afterward, so that grant does not carry over — re-grant here to stay self-contained
+-- (idempotent; harmless where hosted default privileges already apply). Writes remain denied
+-- by RLS (zero client write policies), not by a missing grant.
+grant all on table public.upgrades to authenticated, service_role;
