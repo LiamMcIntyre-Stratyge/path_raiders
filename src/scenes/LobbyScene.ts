@@ -226,7 +226,7 @@ export class LobbyScene extends Phaser.Scene {
     }
 
     ;(document.getElementById('lobby-settings') as HTMLDivElement).onclick = () => {
-      // Settings stub — future phase
+      this.scene.start('UpgradeScene')
     }
 
     ;(document.getElementById('lobby-signout') as HTMLButtonElement).onclick = async () => {
