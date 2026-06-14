@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Persistent Game Foundations
 status: executing
-stopped_at: Phase 11 (accounts-economy) COMPLETE — RLS suite 18/18 green in CI; GoTrue signup outage fixed; Task 4 in-app verification passed. Ready for Phase 12.
-last_updated: "2026-06-13"
-last_activity: 2026-06-13 -- Phase 11 closed: fixed remote GoTrue 500 (auth.users handle_new_user trigger NOT-NULL username abort), RLS 18/18 green, Task 4 earn→spend/XSS verified live
+stopped_at: Phase 12 (progression-upgrades) IMPLEMENTED — 12-01/02/03 complete; 12-04 code done, two-client in-app verify (T3) pending. upgrade_spend migration live + RPC verified via REST.
+last_updated: "2026-06-14"
+last_activity: 2026-06-14 -- Phase 12 implemented (4 plans coded; 12-04 two-client verify pending); progression migration applied live; audit-fix corrected table_grants migration ordering
 progress:
   total_phases: 6
   completed_phases: 3
-  total_plans: 16
-  completed_plans: 16
-  percent: 50
+  total_plans: 20
+  completed_plans: 19
+  percent: 95
 ---
 
 # Project State
@@ -21,20 +21,24 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-12)
 
 **Core value:** The realtime lane battle is the heart of the game; every meta-system (accounts, economy, progression, matchmaking) exists to make that loop matter over time.
-**Current focus:** Phase 11 (accounts-economy) — ✅ COMPLETE & VERIFIED. Next: Phase 12 (progression-upgrades).
+**Current focus:** Phase 12 (progression-upgrades) — implemented; one checkpoint remains (12-04 two-client in-app verify). Phase 11 ✅ complete.
 
 ## Current Position
 
-Phase: 11 (accounts-economy) — ✅ COMPLETE (all verifications passed)
-Plan: 5 of 5 done (11-01…11-05). 11-04 RLS suite 18/18 GREEN in CI; 11-05 Task 4 (in-app earn→spend + XSS) verified live against the hosted project.
-Status: Remote GoTrue signup outage fixed (hardened `handle_new_user` trigger fn, migration 20260613070000); RLS suite refactored off the broken GoTrue admin API to SQL-seeded users + minted JWTs (18/18 green); economy loop verified end-to-end on live (signup→100, unlock→0/insufficient, settle +50/+15), XSS escaping confirmed. Build green (tsc + vite build).
-Last activity: 2026-06-13 -- Phase 11 closed
+Phase: 12 (progression-upgrades) — ◆ IMPLEMENTED, 1 checkpoint pending
+Plan: 4 of 4 coded (12-01…12-04). 12-01 (per-level UNIT_LEVELS/TOWER_LEVELS tables, resolveUnitStats/resolveTowerStats, clampLevels D-12, RED scaffolds) ✅; 12-03 (sim level injection — createWorld/spawnUnit/spawnAI resolve from per-side level maps, sim-levels GREEN, level-1 invariant + sim purity preserved) ✅; 12-02 (upgrades table + upgrade_spend SECURITY DEFINER RPC + progression.ts seam) ✅ — migration applied live, RPC proven via REST (deduct/increment, insufficient_funds, deny-direct-write 42501, deny UPDATE 0-rows, select-own); 12-04 (PlacementScene level exchange/clamp, LoadoutScene resolved-stat display, new UpgradeScene, Lobby gear wiring) — Tasks 1-2 done, Task 3 (two-client parity + upgrade-screen in-app verify) PENDING.
+Status: Code complete; tsc clean, vite build passes, unit suite 94/94 GREEN. `upgrade_spend` migration live (history version 20260614000000). One blocking checkpoint remains (12-04 T3, below).
+Last activity: 2026-06-14 -- Phase 12 implemented
 
-Progress: [█████░░░░░] 50% (Phases 9, 10 & 11 complete; next Phase 12)
+Progress: [█████████░] 95% (Phases 9, 10 & 11 complete; Phase 12 implemented — 12-01/02/03 done, 12-04 verify pending)
+
+### Phase 12 remaining checkpoint (requires user action)
+
+- **12-04 Task 3 — two-client parity + upgrade-screen verify** (resume-signal: `"approved"`): `npm run dev`; Lobby → settings gear → Upgrades screen; upgrade a unit + the tower track; confirm balance deduct, level increment, delta preview, persistence after reload; non-owned shows "UNLOCK FIRST" (D-16), level-5 shows "MAX LEVEL" (D-10). Then two clients with different levels → multiplayer match → each sees own effective stats in Loadout; each renders the OPPONENT at the opponent's clamped levels; both agree on result (PROG-03 parity).
+- Formal `upgrades-rls` vitest suite runs in **CI** (Job 2 boots a local stack via `supabase start` + `db reset`; cannot run locally against remote — `test_create_user` is intentionally remote-absent, A3/A4 containment). Live REST behaviors already prove the RPC; CI is the formal gate on push.
 
 Open follow-ups (non-blocking, by design):
 
-- RLS integration test (test/rls/wallet-rls.test.ts) live-runs in CI on first push (no local Docker in dev).
 - Live prod deploy confirmed via user "pushed" sign-off; optional final Dashboard audit for auditability.
 
 ## Context
@@ -63,6 +67,10 @@ Open follow-ups (non-blocking, by design):
 - [Phase 11]: Settlement requires BOTH players' reports to agree (idempotent per match_id via match_settlements ON CONFLICT + GET DIAGNOSTICS); mismatch→void, lone→pending; winner identified by claimed_winner UUID, never auth.uid() (mutual collusion = accepted interim risk D-05, hardened in P14)
 - [Phase 11-05]: Client recordResult/win-milestone unlock RETIRED (P10 D-13 handoff) — GameScene submits a winner claim via reportMatchResult after game_over; winner derived from sim role→UUID, skips settlement if opponentId not a valid UUID (no forged self-win on loss); username esc()-escaped at GameScene+LobbyScene innerHTML sites (stored-XSS closed, D-14); ProfileScene data/behavior wired to getProfileFull+spendUnlock (visual design user-owned)
 - [Phase 11]: Migration applied to REMOTE Supabase via `supabase db push` (user decision — no local Docker); RLS suite runs against the cloud DB (env mapped from .env.local for local runs, CI injects directly)
+- [Phase 12]: Progression stores LEVELS not stats — `upgrades(user_id, scope, target_id, level)` + per-level stat tables (UNIT_LEVELS/TOWER_LEVELS) resolved by `resolveUnitStats`/`resolveTowerStats`; level-1 invariant = flat baseline, so omitting all levels reproduces the exact pre-P12 battle (no behavior change for existing callers). `clampLevels` (D-12) guards opponent-supplied levels client-side; server-side level-ownership deferred to P14 (accepted interim risk, mirrors P11 D-05)
+- [Phase 12]: `upgrade_spend(p_scope, p_target_id)` SECURITY DEFINER RPC = the authority core (mirrors spend_unlock): server-embedded cost CASE (unit 75/150/300/600, tower 100/200/400/800 — client never supplies amount, PROG-04/D-03), ownership check vs inventory for scope=unit (D-16), atomic guarded deduct, level-transition upsert + GET DIAGNOSTICS concurrency guard (Landmines #1-3), max-level 5 (D-10). RLS select-own only, zero client write policies (deny-by-default); scenes read/spend only via `src/lib/api/progression.ts` (FND-05)
+- [Phase 12]: signup `handle_new_user` trigger is captured FUNCTION-ONLY in migrations (20260613070000) — the trigger itself stays out-of-band on the live DB so CI's `test_create_user` seeds bare users (no auto-provision) and the RLS suite's zero-balance/bare-profile assumptions hold; the app provisions explicitly via provision_account regardless
+- [Phase 12 audit-fix 2026-06-14]: `20260613062000_table_grants.sql` must NOT grant `public.upgrades` — that table is created later by `20260614000000_progression.sql` (which grants it self-containedly); listing it in table_grants broke fresh-DB `supabase db reset` ("relation does not exist", grants apply in timestamp order)
 
 ### Blockers
 
@@ -84,18 +92,24 @@ Open follow-ups (non-blocking, by design):
 
 ## Session Continuity
 
-Last session: 2026-06-13
-Stopped at: **Phase 11 (accounts-economy) executed** — all 5 plans authored and committed (waves 1-4),
-build green (tsc + vite build). 11-01 (esc helper + unit tests GREEN + RLS scaffolds), 11-02 (accounts/economy
-migration — pushed to remote by user), 11-03 (typed API seam; client-authoritative unlock retired), 11-04
-(RLS suite assertions authored), 11-05 (scene wiring: opponentId/walletBalance, reportMatchResult, esc XSS,
-provision_account on signup, ProfileScene). **Two verifications remain, both blocked on the remote
-`auth.users` createUser DB error** (see Blockers): 11-04 full RLS suite GREEN, and 11-05 Task 4 in-app
-earn→spend/XSS verify.
-**Next:** (1) fix remote createUser (Supabase MCP get_logs/execute_sql on the auth.users trigger), then
-(2) run `npx vitest run --project rls` GREEN (env mapped from .env.local), then (3) `npm run dev` Task-4 in-app
-verify, then (4) /gsd:verify-work 11. Also rename VITE__SUPABASE_SERVICE_ROLE_KEY → non-VITE_ (security).
-Resume file (P11 context): .planning/phases/11-accounts-economy/11-CONTEXT.md
+Last session: 2026-06-14
+Stopped at: **Phase 12 (progression-upgrades) implemented** — all 4 plans coded & committed on `main`. 12-01
+(per-level UNIT_LEVELS/TOWER_LEVELS tables, resolvers, clampLevels D-12, RED scaffolds; tests GREEN) ✅; 12-03
+(sim level injection — createWorld/spawnUnit/spawnAI resolve from per-side level maps; sim-levels GREEN; level-1
+invariant + sim purity intact) ✅; 12-02 (upgrades table + upgrade_spend RPC migration + progression.ts seam) ✅
+— migration applied live to remote (history 20260614000000) and RPC verified via REST with a real user JWT
+(deduct/increment, insufficient_funds, deny-direct-write 42501, deny UPDATE 0-rows, select-own); 12-04
+(PlacementScene level exchange/clamp, LoadoutScene resolved-stat display, new UpgradeScene, Lobby gear wiring) —
+Tasks 1-2 done. Build green: tsc clean, vite build passes, unit 94/94 GREEN.
+**One BLOCKING checkpoint remains:** 12-04 Task 3 — two-client parity + upgrade-screen in-app verify
+(`npm run dev`, two clients with different levels → multiplayer parity + upgrade screen) → reply `"approved"`.
+**Audit-fix 2026-06-14:** diagnosed the RLS suite is CI/local-stack-only by design (`test_create_user` is
+remote-absent by A3/A4 containment — cannot run locally against remote); fixed a migration ordering bug
+(removed `public.upgrades` from `table_grants` — created later by the progression migration, which grants it).
+**Next:** (1) push → CI Job 2 runs the full RLS suite (incl. upgrades-rls) against a fresh local stack (formal
+RLS gate); (2) `npm run dev` two-client verify → reply `"approved"`; (3) /gsd:verify-work 12. Still open from P11:
+rename VITE__SUPABASE_SERVICE_ROLE_KEY → non-VITE_ (security).
+Resume file (P12 context): .planning/phases/12-progression-upgrades/12-CONTEXT.md
 
 ✓ Resolved 2026-06-12: Reworded REQUIREMENTS.md (FND-02) + ROADMAP.md (Phase 9 Goal/SC#2)
 to the email-only identity criterion (D-04, no anonymous auth) before planning Phase 9, so
@@ -114,3 +128,7 @@ the verifier checks against the email-only criterion.
 | Phase 10 P03 | 5min | 2 tasks | 3 files |
 | Phase 10 P04 | 6min | 2 tasks | 5 files |
 | Phase 10 P05 | ~2min | 3 tasks (2 auto + D-16 gate) | 4 files |
+| Phase 12 P01 | ~7min | 3 tasks (TDD) | 7 files |
+| Phase 12 P03 | ~12min | 2 tasks | 3 files |
+| Phase 12 P02 | ~4min | 2 of 3 (T3 = live push, done via MCP) | 2 files |
+| Phase 12 P04 | ~9min | 2 of 3 (T3 = two-client verify, pending) | 4 files |

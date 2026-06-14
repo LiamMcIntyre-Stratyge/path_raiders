@@ -34,7 +34,7 @@ UI from scratch.
 - [x] **Phase 9: Backend Foundations & Integrity** - Committed migrations, RLS, real identity, secret-leak guard, and a test harness — make the backend reviewable and safe (completed 2026-06-12)
 - [x] **Phase 10: Services & Simulation Refactor** - Extract a typed services layer and a pure `src/sim/` battle module; behavior-preserving de-risking refactor (completed 2026-06-13)
 - [x] **Phase 11: Accounts & Economy** - Server-truth accounts, profiles, wallet, and unit unlocks; first real authority move on the safe non-realtime surface (completed 2026-06-13 — 5/5 plans, RLS suite 18/18 green in CI, remote GoTrue signup outage fixed, Task 4 earn→spend/XSS verified live)
-- [ ] **Phase 12: Progression & Upgrades** - Server-side level-based unit/tower upgrades that persist and feed back into battle stats
+- [~] **Phase 12: Progression & Upgrades** - Server-side level-based unit/tower upgrades that persist and feed back into battle stats (implemented 2026-06-14; 12-01/02/03 complete, 12-02 migration live + RPC verified; 12-04 code done, two-client in-app verify pending)
 - [ ] **Phase 13: Matchmaking & Ranking** - Quick Match with hidden-MMR pairing, race-safe match lifecycle, visible trophy rank, and match history
 - [ ] **Phase 14: Battle Authority & Result Validation** - Determinism pass plus server-validated match reports settling rewards, progression, and rating
 
@@ -115,7 +115,13 @@ UI from scratch.
   3. Unit and tower stats used in battle reflect the persisted upgrade levels of both participants, not just the local player.
   4. Upgrade costs and effects come from a server-side balance config (not client-editable), and progression is stored as levels (not denormalized stats) so balance can be retuned safely.
 
-**Plans**: TBD
+**Plans**: 4 plans
+
+  - [x] 12-01-PLAN.md — Wave 0: per-level stat tables (UNIT_LEVELS/TOWER_LEVELS) + resolveUnitStats/resolveTowerStats + clampLevels guard (D-12) + RED test scaffolds (PROG-03/04)
+  - [x] 12-02-PLAN.md — upgrades table + upgrade_spend SECURITY DEFINER RPC + progression.ts seam; migration applied live + RPC verified via REST; formal upgrades-rls suite runs in CI (PROG-01/02/04)
+  - [x] 12-03-PLAN.md — sim level injection: createWorld/spawnUnit/spawnAI resolve stats from per-side level maps; sim-levels GREEN; level-1 invariant + sim purity preserved (PROG-03)
+  - [~] 12-04-PLAN.md — realtime level exchange + clamp + scene wiring + UpgradeScene (Tasks 1-2 done); [BLOCKING] two-client parity + upgrade-screen in-app verify (T3) PENDING (PROG-01/02/03)
+
 **UI hint**: yes
 
 ### Phase 13: Matchmaking & Ranking
