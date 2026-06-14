@@ -86,6 +86,13 @@ export interface SimWorld {
   // Phase 14 seam
   nextId: number // monotonic id counter
   tickCount: number // increments each step() call
+  // P12: level maps. Missing key = level 1 (D-15: absence of row = level 1).
+  // Stored on world so both spawnUnit and spawnAI can call resolveUnitStats
+  // without threading extra params (RESEARCH.md Focus Area 1 recommendation).
+  hostUnitLevels: Record<string, number>
+  guestUnitLevels: Record<string, number>
+  hostTowerLevel: number
+  guestTowerLevel: number
 }
 
 /**
@@ -104,5 +111,5 @@ export type SimEvent =
  * and Supabase broadcasts into these; the sim is transport-free.
  */
 export type SimInput =
-  | { type: 'deploy'; unitId: string; slot: number; role: 'host' | 'guest' }
+  | { type: 'deploy'; unitId: string; slot: number; role: 'host' | 'guest'; level?: number }
   | { type: 'wall_break'; row: number; col: number }

@@ -39,6 +39,11 @@ export interface CreateWorldOptions {
   isPractice: boolean
   hostFaction: string
   guestFaction: string
+  // P12 additions: per-side level maps (defaults keep all units/towers at level 1)
+  hostTowerLevel?: number          // absent = 1
+  guestTowerLevel?: number         // absent = 1
+  hostUnitLevels?: Record<string, number>   // defId → level; missing key = 1
+  guestUnitLevels?: Record<string, number>  // defId → level; missing key = 1
 }
 
 /**
@@ -114,6 +119,10 @@ export function createWorld(opts: CreateWorldOptions): SimWorld {
     mapBase: opts.mapBase,
     nextId: 1,
     tickCount: 0,
+    hostUnitLevels:  opts.hostUnitLevels  ?? {},
+    guestUnitLevels: opts.guestUnitLevels ?? {},
+    hostTowerLevel:  opts.hostTowerLevel  ?? 1,
+    guestTowerLevel: opts.guestTowerLevel ?? 1,
   }
 }
 
