@@ -115,7 +115,12 @@ UI from scratch.
   3. Unit and tower stats used in battle reflect the persisted upgrade levels of both participants, not just the local player.
   4. Upgrade costs and effects come from a server-side balance config (not client-editable), and progression is stored as levels (not denormalized stats) so balance can be retuned safely.
 
-**Plans**: TBD
+**Plans**: 4 plans
+
+  - [ ] 12-01-PLAN.md — Wave 0: per-level stat tables + resolvers + clampLevels guard + RED test scaffolds (PROG-03/04)
+  - [ ] 12-02-PLAN.md — upgrades table + upgrade_spend RPC + progression.ts seam + [BLOCKING] schema push + RLS GREEN (PROG-01/02/04)
+  - [ ] 12-03-PLAN.md — sim level injection: createWorld/spawnUnit/spawnAI resolve stats from levels (PROG-03)
+  - [ ] 12-04-PLAN.md — realtime level exchange + clamp + scene wiring + upgrade screen + two-client parity gate (PROG-01/02/03)
 **UI hint**: yes
 
 ### Phase 13: Matchmaking & Ranking
@@ -160,6 +165,6 @@ Phases execute in numeric order: 9 → 10 → 11 → 12 → 13 → 14
 | 9. Backend Foundations & Integrity | v2.0 | 6/6 | Complete   | 2026-06-12 |
 | 10. Services & Simulation Refactor | v2.0 | 1/5 | In progress | - |
 | 11. Accounts & Economy | v2.0 | 0/TBD | Not started | - |
-| 12. Progression & Upgrades | v2.0 | 0/TBD | Not started | - |
+| 12. Progression & Upgrades | v2.0 | 0/4 | Not started | - |
 | 13. Matchmaking & Ranking | v2.0 | 0/TBD | Not started | - |
 | 14. Battle Authority & Result Validation | v2.0 | 0/TBD | Not started | - |
