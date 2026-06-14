@@ -1,7 +1,7 @@
 import type { SimWorld, SimEvent, SimInput } from './types'
 import { processUnits, processTowers } from './combat'
 import { spawnUnit, assignPath } from './world'
-import { UNITS } from '../units/UnitData'
+import { UNITS, resolveUnitStats } from '../units/UnitData'
 import { slotWorldX, guestSpawnY } from '../maps/MapData'
 
 /**
@@ -21,20 +21,25 @@ function spawnAI(world: SimWorld, rng: () => number): void {
   const def = oppPool[Math.floor(rng() * oppPool.length)] // rng call 1
   const slotIdx = Math.floor(rng() * 3) // rng call 2
 
+  // P12: resolve AI unit stats via resolveUnitStats (PROG-03 spawnAI landmine fix)
+  // In practice mode guestUnitLevels is {}, so AI always resolves to level 1 — intended.
+  const aiLevel = world.guestUnitLevels[def.id] ?? 1
+  const aiStats = resolveUnitStats(def.id, aiLevel)
+
   const unit: SimWorld['guestUnits'][number] = {
     id: String(world.nextId++),
     defId: def.id,
     faction: def.faction,
     x: slotWorldX(slotIdx),
     y: guestSpawnY(),
-    hp: def.hp,
-    maxHp: def.hp,
+    hp: aiStats.hp,
+    maxHp: aiStats.hp,
     dir: 1,
     laneSlot: slotIdx,
     attackCd: 0,
     attackRate: 900,
     speedPx: def.speedPx,
-    dmg: def.dmg,
+    dmg: aiStats.dmg,
     waypoints: [],
     wpIdx: 0,
     wallTarget: null,

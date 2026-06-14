@@ -11,8 +11,8 @@ import {
   hostSpawnY,
   guestSpawnY,
 } from '../maps/MapData'
-import { TOWER_RANGE, TOWER_DMG, TOWER_CD } from '../towers/TowerData'
-import { UNITS } from '../units/UnitData'
+import { resolveTowerStats } from '../towers/TowerData'
+import { UNITS, resolveUnitStats } from '../units/UnitData'
 import { findPath, type Cell } from '../lib/pathfinder'
 
 // ─── Wall HP ───────────────────────────────────────────────────────────────
@@ -68,32 +68,33 @@ export function createWorld(opts: CreateWorldOptions): SimWorld {
   }
 
   // Towers (GameScene.create :166-174): 3 slots × 2 sides
+  // P12: resolve stats from per-side tower level (PROG-03)
+  const hostTowerStats = resolveTowerStats(opts.hostTowerLevel ?? 1)
+  const guestTowerStats = resolveTowerStats(opts.guestTowerLevel ?? 1)
   const towers: SimWorld['towers'] = []
   for (let s = 0; s < 3; s++) {
     const cx = slotWorldX(s)
     // Host-side tower: between rows 13-14, attacks guest units (moving down)
-    const hostTowerY = 13.5 * CELL
     towers.push({
       cx,
-      cy: hostTowerY,
+      cy: 13.5 * CELL,
       slotIdx: s,
       isHostSide: true,
-      range: TOWER_RANGE,
-      dmg: TOWER_DMG,
+      range: hostTowerStats.range,
+      dmg: hostTowerStats.dmg,
       cd: 0,
-      maxCd: TOWER_CD,
+      maxCd: hostTowerStats.maxCd,
     })
     // Guest-side tower: between rows 1-2, attacks host units (moving up)
-    const guestTowerY = 1.5 * CELL
     towers.push({
       cx,
-      cy: guestTowerY,
+      cy: 1.5 * CELL,
       slotIdx: s,
       isHostSide: false,
-      range: TOWER_RANGE,
-      dmg: TOWER_DMG,
+      range: guestTowerStats.range,
+      dmg: guestTowerStats.dmg,
       cd: 0,
-      maxCd: TOWER_CD,
+      maxCd: guestTowerStats.maxCd,
     })
   }
 
@@ -158,8 +159,8 @@ export function assignPath(world: SimWorld, unit: SimUnit): void {
  */
 export function spawnUnit(
   world: SimWorld,
-  input: { unitId: string; slot: number; role: 'host' | 'guest' },
-  _events: SimEvent[],
+  input: { unitId: string; slot: number; role: 'host' | 'guest'; level?: number } | { type: 'deploy'; unitId: string; slot: number; role: 'host' | 'guest'; level?: number },
+  _events?: SimEvent[] | unknown,
 ): SimUnit | null {
   const def = UNITS.find((u) => u.id === input.unitId)
   if (!def) return null
@@ -168,20 +169,25 @@ export function spawnUnit(
   const spawnX = slotWorldX(input.slot)
   const spawnY = input.role === 'host' ? hostSpawnY() : guestSpawnY()
 
+  // P12: resolve stats from the world's level map for this side (PROG-03)
+  const levelMap = input.role === 'host' ? world.hostUnitLevels : world.guestUnitLevels
+  const unitLevel = input.level ?? levelMap[input.unitId] ?? 1
+  const stats = resolveUnitStats(input.unitId, unitLevel)
+
   const unit: SimUnit = {
     id: String(world.nextId++),
     defId: def.id,
     faction: def.faction,
     x: spawnX,
     y: spawnY,
-    hp: def.hp,
-    maxHp: def.hp,
+    hp: stats.hp,
+    maxHp: stats.hp,
     dir,
     laneSlot: input.slot,
     attackCd: 0,
     attackRate: 900,
     speedPx: def.speedPx,
-    dmg: def.dmg,
+    dmg: stats.dmg,
     waypoints: [],
     wpIdx: 0,
     wallTarget: null,
