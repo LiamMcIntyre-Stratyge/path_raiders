@@ -42,6 +42,11 @@ interface GameSceneData {
   mapId?: number
   hostSlot?: number | null
   guestSlot?: number | null
+  // P12: per-side level maps threaded from PlacementScene → LoadoutScene → here (D-11)
+  hostUnitLevels?: Record<string, number>
+  guestUnitLevels?: Record<string, number>
+  hostTowerLevel?: number
+  guestTowerLevel?: number
 }
 
 // ─── Faction display ──────────────────────────────────────────────────────────
@@ -127,6 +132,11 @@ export class GameScene extends Phaser.Scene {
       isPractice:   this.isPractice,
       hostFaction,
       guestFaction,
+      // P12: level maps threaded from PlacementScene; absent = all level 1 (D-15)
+      hostUnitLevels:  data?.hostUnitLevels  ?? {},
+      guestUnitLevels: data?.guestUnitLevels ?? {},
+      hostTowerLevel:  data?.hostTowerLevel  ?? 1,
+      guestTowerLevel: data?.guestTowerLevel ?? 1,
     })
   }
 

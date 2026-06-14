@@ -1,6 +1,6 @@
 import Phaser from 'phaser'
 import gameState from '../lib/gameState'
-import { UNITS } from '../units/UnitData'
+import { UNITS, resolveUnitStats } from '../units/UnitData'
 
 const MAX_SLOTS = 3
 
@@ -11,6 +11,11 @@ interface LaunchParams {
   mapId: number
   hostSlot: number
   guestSlot: number
+  // P12: per-side level maps (optional; absent = all level 1, D-15)
+  hostUnitLevels?: Record<string, number>
+  guestUnitLevels?: Record<string, number>
+  hostTowerLevel?: number
+  guestTowerLevel?: number
 }
 
 const FAC_COLOR: Record<string, string> = {
@@ -127,6 +132,11 @@ ${factionUnits.map(u => {
   const locked  = !gameState.unlockedUnits.includes(u.id)
   const sel     = this.selected.has(u.id)
   const unWins  = u.id === 'assault_bot' ? 2 : u.id === 'thorn_beast' ? 3 : u.id === 'elementalist' ? 5 : 0
+  // P12: resolve effective stats from the player's level (Pitfall 6 fix)
+  const ownRole  = this.params?.role ?? gameState.role ?? 'host'
+  const ownMap   = ownRole === 'host' ? this.params?.hostUnitLevels : this.params?.guestUnitLevels
+  const unitLvl  = ownMap?.[u.id] ?? 1
+  const stats    = resolveUnitStats(u.id, unitLvl)
   return `
   <div class="lo-card${sel ? ' lo-selected' : ''}${locked ? ' lo-locked' : ''}" data-uid="${u.id}">
     <div class="lo-check">✓</div>
@@ -135,8 +145,8 @@ ${factionUnits.map(u => {
     <div class="lo-name">${u.name}</div>
     <div class="lo-tier">TIER ${u.tier}</div>
     <div class="lo-stats">
-      <div class="lo-stat">HP <span>${u.hp}</span></div>
-      <div class="lo-stat">DMG <span>${u.dmg}</span></div>
+      <div class="lo-stat">HP <span>${stats.hp}</span></div>
+      <div class="lo-stat">DMG <span>${stats.dmg}</span></div>
       <div class="lo-stat">SPD <span>${u.speed}</span></div>
       <div class="lo-stat">COST <span>${u.cost}g</span></div>
     </div>

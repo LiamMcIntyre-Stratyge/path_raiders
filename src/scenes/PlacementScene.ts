@@ -2,6 +2,8 @@ import Phaser from 'phaser'
 import { supabase } from '../lib/supabase'
 import gameState from '../lib/gameState'
 import { MAPS, COLS, ROWS, BASE_SLOTS, TERRAIN_COLOR, OVERLAY_COLOR } from '../maps/MapData'
+import { getOwnLevels, type OwnLevels } from '../lib/api/progression'
+import { clampLevels } from '../lib/progression/clamp'
 import type { MapDef } from '../types'
 import type { RealtimeChannel } from '@supabase/supabase-js'
 
@@ -25,6 +27,11 @@ export class PlacementScene extends Phaser.Scene {
   private canvas!: HTMLCanvasElement
   private ctx!: CanvasRenderingContext2D
   private channel: RealtimeChannel | null = null
+  // P12: own + opponent level maps for the level-exchange flow (D-11/D-12)
+  private ownLevels: OwnLevels = { unitLevels: {}, towerLevel: 1 }
+  private opponentUnitLevels: Record<string, number> = {}
+  private opponentTowerLevel = 1
+  private levelsReceived = false // multiplayer readiness gate
 
   constructor() { super({ key: 'PlacementScene' }) }
 
@@ -35,10 +42,14 @@ export class PlacementScene extends Phaser.Scene {
     const mapId = data?.mapId ?? Math.floor(Math.random() * MAPS.length)
     this.map = MAPS.find(m => m.id === mapId) ?? MAPS[0]
     gameState.mapId = this.map.id
-    this.chosenSlot   = null
-    this.opponentSlot = null
-    this.myConfirmed  = false
-    this.channel      = null
+    this.chosenSlot          = null
+    this.opponentSlot        = null
+    this.myConfirmed         = false
+    this.channel             = null
+    this.ownLevels           = { unitLevels: {}, towerLevel: 1 }
+    this.opponentUnitLevels  = {}
+    this.opponentTowerLevel  = 1
+    this.levelsReceived      = false
   }
 
   create() {
@@ -160,7 +171,14 @@ export class PlacementScene extends Phaser.Scene {
       }
 
       if (isPractice) {
-        this.launchGame()
+        // P12: read own levels before launch so launchGame has them; AI stays level 1 (guestUnitLevels={})
+        void (async () => {
+          const userId = (await supabase.auth.getUser()).data.user?.id
+          if (userId) {
+            this.ownLevels = await getOwnLevels(userId)
+          }
+          this.launchGame()
+        })()
         return
       }
 
@@ -215,13 +233,33 @@ export class PlacementScene extends Phaser.Scene {
         this.drawMiniMap()
         this.checkBothReady()
       })
-      .subscribe((status) => {
+      // P12: receive opponent's level map, clamp it (D-12), and gate readiness
+      .on('broadcast', { event: 'loadout' }, ({ payload }) => {
+        const p = payload as { role: string; unitLevels: Record<string, number>; towerLevel: number }
+        if (p.role === gameState.role) return  // own echo, ignore
+        const clamped = clampLevels(p.unitLevels, p.towerLevel)
+        this.opponentUnitLevels = clamped.unitLevels
+        this.opponentTowerLevel = clamped.towerLevel
+        this.levelsReceived = true
+        this.checkBothReady()
+      })
+      .subscribe(async (status) => {
         if (status !== 'SUBSCRIBED') return
         // Host broadcasts the authoritative map
         if (role === 'host') {
           void this.channel!.send({
             type: 'broadcast', event: 'map_sync',
             payload: { mapId: this.map.id },
+          })
+        }
+        // P12: read own levels and broadcast alongside slot (D-11)
+        const userId = (await supabase.auth.getUser()).data.user?.id
+        if (userId) {
+          const levels = await getOwnLevels(userId)
+          this.ownLevels = levels   // store for launchGame
+          void this.channel!.send({
+            type: 'broadcast', event: 'loadout',
+            payload: { role, unitLevels: levels.unitLevels, towerLevel: levels.towerLevel },
           })
         }
       })
@@ -238,6 +276,8 @@ export class PlacementScene extends Phaser.Scene {
 
   private checkBothReady() {
     if (!this.myConfirmed || this.opponentSlot === null) return
+    // P12: in multiplayer, also wait for the opponent's loadout broadcast (D-11 / Pitfall 4)
+    if (!gameState.roomId?.startsWith('practice-') && !this.levelsReceived) return
     this.setStatus('Both ready — launching!')
     // Small delay so both players see the status
     setTimeout(() => this.launchGame(), 600)
@@ -247,6 +287,11 @@ export class PlacementScene extends Phaser.Scene {
     const role      = gameState.role ?? 'host'
     const hostSlot  = role === 'host' ? this.chosenSlot! : this.opponentSlot!
     const guestSlot = role === 'guest' ? this.chosenSlot! : (this.opponentSlot ?? Math.floor(Math.random() * 3))
+    // P12: map own/opponent levels to host/guest side (D-11)
+    const hostUnitLevels  = role === 'host' ? this.ownLevels.unitLevels  : this.opponentUnitLevels
+    const guestUnitLevels = role === 'guest' ? this.ownLevels.unitLevels : this.opponentUnitLevels
+    const hostTowerLevel  = role === 'host' ? this.ownLevels.towerLevel  : this.opponentTowerLevel
+    const guestTowerLevel = role === 'guest' ? this.ownLevels.towerLevel : this.opponentTowerLevel
     gameState.hostSlot  = hostSlot
     gameState.guestSlot = guestSlot
     this.scene.start('LoadoutScene', {
@@ -256,6 +301,10 @@ export class PlacementScene extends Phaser.Scene {
       mapId:         this.map.id,
       hostSlot,
       guestSlot,
+      hostUnitLevels,
+      guestUnitLevels,
+      hostTowerLevel,
+      guestTowerLevel,
     })
   }
 
