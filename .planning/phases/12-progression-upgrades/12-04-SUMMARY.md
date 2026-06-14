@@ -2,7 +2,7 @@
 phase: 12-progression-upgrades
 plan: "04"
 subsystem: scene-wiring
-status: "implemented — blocking checkpoint pending"
+status: "complete — two-client parity + upgrade-screen verified 2026-06-14"
 tags: [progression, placement, loadout, game-scene, upgrade-screen, wave-2]
 dependency_graph:
   requires:
@@ -53,7 +53,7 @@ metrics:
 
 # Phase 12 Plan 04: Scene Wiring (PROG-03 + PROG-01/02 UI) Summary
 
-**One-liner:** Wired progression end-to-end through the UI — PlacementScene exchanges + clamps levels over the existing channel, threads them through LoadoutScene into GameScene.createWorld, LoadoutScene shows effective (level-resolved) stats, and UpgradeScene binds all three data surfaces (getOwnLevels/getBalance/getOwnedUnits) to the spend-to-upgrade flow. Task 3 (two-client parity gate) is pending human verification.
+**One-liner:** Wired progression end-to-end through the UI — PlacementScene exchanges + clamps levels over the existing channel, threads them through LoadoutScene into GameScene.createWorld, LoadoutScene shows effective (level-resolved) stats, and UpgradeScene binds all three data surfaces (getOwnLevels/getBalance/getOwnedUnits) to the spend-to-upgrade flow. Task 3 (two-client parity gate) was verified live and approved 2026-06-14.
 
 ## What Was Built
 
@@ -105,16 +105,22 @@ Modified `src/main.ts`:
 Modified `src/scenes/LobbyScene.ts`:
 - Wired `lobby-settings` button (was stub) to `this.scene.start('UpgradeScene')`
 
-### Task 3: Two-client parity gate + upgrade-screen verification (PENDING — blocking checkpoint)
+### Task 3: Two-client parity gate + upgrade-screen verification (✅ VERIFIED 2026-06-14)
 
-NOT attempted. Requires live two-client session against the remote DB. See checkpoint section below.
+Verified live by the user (resume-signal "approved") against the remote DB using two mock
+accounts (alpha fresh / bravo pre-upgraded scout_drone L3 + tower L3): upgrade screen deducts
+balance, increments level, shows delta preview, persists across reload; ownership ("UNLOCK
+FIRST", D-16) and max-level ("MAX LEVEL", D-10) guards behave; two-client match shows each
+client rendering the opponent at the opponent's clamped levels and both agreeing on the result
+(PROG-03 cross-participant parity).
 
 ## Test Status
 
 | Suite | Tests | Status |
 |-------|-------|--------|
 | unit (all) | 94 | GREEN |
-| rls | not run (blocked on remote createUser DB error — known from Plan 11-04) | N/A |
+| rls (upgrades-rls) | runs in CI (local stack); `upgrade_spend` behaviors also proven live via REST | GREEN path |
+| two-client parity + upgrade screen | live human verify (Task 3) | ✅ approved 2026-06-14 |
 
 ## Commits
 
@@ -143,9 +149,9 @@ NOT attempted. Requires live two-client session against the remote DB. See check
 
 ## Blocking Checkpoint (Task 3)
 
-**Status:** NOT ATTEMPTED — pending human verification
+**Status:** ✅ VERIFIED & APPROVED 2026-06-14 (user resume-signal "approved") — parity, persistence, and the ownership/max-level UI guards all confirmed live against the remote DB.
 
-**What to verify:**
+**What was verified:**
 1. Run `npm run dev`. Sign in as Player A; navigate to the Upgrades screen (settings gear in lobby).
 2. Upgrade a starter unit (e.g. scout_drone) one level and the tower track one level. Confirm: balance decreases by the displayed cost, the level increments, and stat-delta updates. Reload the app — confirm the level persisted (PROG-01/02).
 3. Attempt to upgrade a non-owned, non-starter unit — confirm the button is absent (shows "UNLOCK FIRST"). At max level (5), confirm "MAX LEVEL" is shown with no button.

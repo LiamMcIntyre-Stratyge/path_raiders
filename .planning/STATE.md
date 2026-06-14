@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Persistent Game Foundations
 status: executing
-stopped_at: Phase 12 (progression-upgrades) IMPLEMENTED — 12-01/02/03 complete; 12-04 code done, two-client in-app verify (T3) pending. upgrade_spend migration live + RPC verified via REST.
+stopped_at: Phase 12 (progression-upgrades) COMPLETE — 4/4 plans; upgrade_spend migration live + RPC verified; two-client parity + upgrade-screen in-app verify approved 2026-06-14. Next: Phase 13 (matchmaking-ranking).
 last_updated: "2026-06-14"
-last_activity: 2026-06-14 -- Phase 12 implemented (4 plans coded; 12-04 two-client verify pending); progression migration applied live; audit-fix corrected table_grants migration ordering
+last_activity: 2026-06-14 -- Phase 12 closed: 12-04 two-client parity + upgrade-screen verified live (approved); all 4 plans complete
 progress:
   total_phases: 6
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 20
-  completed_plans: 19
-  percent: 95
+  completed_plans: 20
+  percent: 67
 ---
 
 # Project State
@@ -21,24 +21,23 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-12)
 
 **Core value:** The realtime lane battle is the heart of the game; every meta-system (accounts, economy, progression, matchmaking) exists to make that loop matter over time.
-**Current focus:** Phase 12 (progression-upgrades) — implemented; one checkpoint remains (12-04 two-client in-app verify). Phase 11 ✅ complete.
+**Current focus:** Phase 12 (progression-upgrades) — ✅ COMPLETE & VERIFIED. Next: Phase 13 (matchmaking-ranking).
 
 ## Current Position
 
-Phase: 12 (progression-upgrades) — ◆ IMPLEMENTED, 1 checkpoint pending
-Plan: 4 of 4 coded (12-01…12-04). 12-01 (per-level UNIT_LEVELS/TOWER_LEVELS tables, resolveUnitStats/resolveTowerStats, clampLevels D-12, RED scaffolds) ✅; 12-03 (sim level injection — createWorld/spawnUnit/spawnAI resolve from per-side level maps, sim-levels GREEN, level-1 invariant + sim purity preserved) ✅; 12-02 (upgrades table + upgrade_spend SECURITY DEFINER RPC + progression.ts seam) ✅ — migration applied live, RPC proven via REST (deduct/increment, insufficient_funds, deny-direct-write 42501, deny UPDATE 0-rows, select-own); 12-04 (PlacementScene level exchange/clamp, LoadoutScene resolved-stat display, new UpgradeScene, Lobby gear wiring) — Tasks 1-2 done, Task 3 (two-client parity + upgrade-screen in-app verify) PENDING.
-Status: Code complete; tsc clean, vite build passes, unit suite 94/94 GREEN. `upgrade_spend` migration live (history version 20260614000000). One blocking checkpoint remains (12-04 T3, below).
-Last activity: 2026-06-14 -- Phase 12 implemented
+Phase: 12 (progression-upgrades) — ✅ COMPLETE (all 4 plans; two-client verify approved)
+Plan: 4 of 4 done (12-01…12-04). 12-01 (per-level UNIT_LEVELS/TOWER_LEVELS tables, resolveUnitStats/resolveTowerStats, clampLevels D-12, RED scaffolds); 12-03 (sim level injection — createWorld/spawnUnit/spawnAI resolve from per-side level maps, sim-levels GREEN, level-1 invariant + sim purity preserved); 12-02 (upgrades table + upgrade_spend SECURITY DEFINER RPC + progression.ts seam) — migration applied live (history 20260614000000), RPC proven via REST (deduct/increment, insufficient_funds, deny-direct-write 42501, deny UPDATE 0-rows, select-own); 12-04 (PlacementScene level exchange/clamp, LoadoutScene resolved-stat display, new UpgradeScene, Lobby gear wiring) — two-client parity + upgrade-screen in-app verify APPROVED 2026-06-14.
+Status: Phase complete. tsc clean, vite build passes, unit suite 94/94 GREEN. `upgrade_spend` live; the four PROG requirements (PROG-01/02/03/04) delivered.
+Last activity: 2026-06-14 -- Phase 12 closed (12-04 verified)
 
-Progress: [█████████░] 95% (Phases 9, 10 & 11 complete; Phase 12 implemented — 12-01/02/03 done, 12-04 verify pending)
+Progress: [██████░░░░] 67% (Phases 9, 10, 11 & 12 complete; next Phase 13 — matchmaking & ranking)
 
-### Phase 12 remaining checkpoint (requires user action)
-
-- **12-04 Task 3 — two-client parity + upgrade-screen verify** (resume-signal: `"approved"`): `npm run dev`; Lobby → settings gear → Upgrades screen; upgrade a unit + the tower track; confirm balance deduct, level increment, delta preview, persistence after reload; non-owned shows "UNLOCK FIRST" (D-16), level-5 shows "MAX LEVEL" (D-10). Then two clients with different levels → multiplayer match → each sees own effective stats in Loadout; each renders the OPPONENT at the opponent's clamped levels; both agree on result (PROG-03 parity).
-- Formal `upgrades-rls` vitest suite runs in **CI** (Job 2 boots a local stack via `supabase start` + `db reset`; cannot run locally against remote — `test_create_user` is intentionally remote-absent, A3/A4 containment). Live REST behaviors already prove the RPC; CI is the formal gate on push.
+Suggested next: `/gsd:verify-work 12` (goal-backward phase verification) before starting Phase 13, or proceed to Phase 13 planning.
 
 Open follow-ups (non-blocking, by design):
 
+- Mock test accounts on the live project: `commander.alpha@example.test` / `commander.bravo@example.test` (pw `PathRaiders!1`) — created for the 12-04 two-client verify; delete when no longer needed.
+- The starter-unit ownership gap surfaced during verify: `upgrade_spend` checks `public.inventory`, but signup only grants a wallet (starters live in `profiles.unlocked_units`, not inventory) — confirm whether signup should seed starter inventory.
 - Live prod deploy confirmed via user "pushed" sign-off; optional final Dashboard audit for auditability.
 
 ## Context
@@ -101,15 +100,17 @@ invariant + sim purity intact) ✅; 12-02 (upgrades table + upgrade_spend RPC mi
 (deduct/increment, insufficient_funds, deny-direct-write 42501, deny UPDATE 0-rows, select-own); 12-04
 (PlacementScene level exchange/clamp, LoadoutScene resolved-stat display, new UpgradeScene, Lobby gear wiring) —
 Tasks 1-2 done. Build green: tsc clean, vite build passes, unit 94/94 GREEN.
-**One BLOCKING checkpoint remains:** 12-04 Task 3 — two-client parity + upgrade-screen in-app verify
-(`npm run dev`, two clients with different levels → multiplayer parity + upgrade screen) → reply `"approved"`.
-**Audit-fix 2026-06-14:** diagnosed the RLS suite is CI/local-stack-only by design (`test_create_user` is
-remote-absent by A3/A4 containment — cannot run locally against remote); fixed a migration ordering bug
-(removed `public.upgrades` from `table_grants` — created later by the progression migration, which grants it).
-**Next:** (1) push → CI Job 2 runs the full RLS suite (incl. upgrades-rls) against a fresh local stack (formal
-RLS gate); (2) `npm run dev` two-client verify → reply `"approved"`; (3) /gsd:verify-work 12. Still open from P11:
-rename VITE__SUPABASE_SERVICE_ROLE_KEY → non-VITE_ (security).
-Resume file (P12 context): .planning/phases/12-progression-upgrades/12-CONTEXT.md
+**Phase 12 CLOSED 2026-06-14** — 12-04 Task 3 (two-client parity + upgrade-screen in-app verify) approved by the
+user against the live DB (mock accounts alpha/bravo; bravo pre-upgraded so opponent-level parity was visible).
+All four PROG requirements delivered. **Audit-fix 2026-06-14:** diagnosed the RLS suite is CI/local-stack-only by
+design (`test_create_user` is remote-absent by A3/A4 containment — cannot run locally against remote); fixed a
+migration ordering bug (removed `public.upgrades` from `table_grants` — created later by the progression migration,
+which grants it).
+**Next:** (1) optional `/gsd:verify-work 12` (goal-backward phase verification) for the record; (2) start Phase 13
+(matchmaking & ranking) — needs a focused research pass on atomic MMR pairing under load + match lifecycle/timeout
+design (see Research flags). Still open from P11: rename VITE__SUPABASE_SERVICE_ROLE_KEY → non-VITE_ (security).
+Cleanup: delete mock accounts commander.alpha/bravo@example.test when done testing.
+Resume file (P13 context): plan Phase 13 next (no CONTEXT yet).
 
 ✓ Resolved 2026-06-12: Reworded REQUIREMENTS.md (FND-02) + ROADMAP.md (Phase 9 Goal/SC#2)
 to the email-only identity criterion (D-04, no anonymous auth) before planning Phase 9, so

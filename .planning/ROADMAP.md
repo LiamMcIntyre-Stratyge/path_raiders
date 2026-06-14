@@ -34,7 +34,7 @@ UI from scratch.
 - [x] **Phase 9: Backend Foundations & Integrity** - Committed migrations, RLS, real identity, secret-leak guard, and a test harness — make the backend reviewable and safe (completed 2026-06-12)
 - [x] **Phase 10: Services & Simulation Refactor** - Extract a typed services layer and a pure `src/sim/` battle module; behavior-preserving de-risking refactor (completed 2026-06-13)
 - [x] **Phase 11: Accounts & Economy** - Server-truth accounts, profiles, wallet, and unit unlocks; first real authority move on the safe non-realtime surface (completed 2026-06-13 — 5/5 plans, RLS suite 18/18 green in CI, remote GoTrue signup outage fixed, Task 4 earn→spend/XSS verified live)
-- [~] **Phase 12: Progression & Upgrades** - Server-side level-based unit/tower upgrades that persist and feed back into battle stats (implemented 2026-06-14; 12-01/02/03 complete, 12-02 migration live + RPC verified; 12-04 code done, two-client in-app verify pending)
+- [x] **Phase 12: Progression & Upgrades** - Server-side level-based unit/tower upgrades that persist and feed back into battle stats (completed 2026-06-14 — 4/4 plans; upgrade_spend migration live + RPC verified via REST; two-client parity + upgrade-screen in-app verify approved)
 - [ ] **Phase 13: Matchmaking & Ranking** - Quick Match with hidden-MMR pairing, race-safe match lifecycle, visible trophy rank, and match history
 - [ ] **Phase 14: Battle Authority & Result Validation** - Determinism pass plus server-validated match reports settling rewards, progression, and rating
 
@@ -96,11 +96,13 @@ UI from scratch.
   5. Existing v1.0 `profiles` rows (wins, unlocked units) are migrated forward into the new model with no data loss.
 
 **Plans**: 5 plans
+
 - [ ] 11-01-PLAN.md — Wave 0: esc() XSS helper + economy unit tests + RED RLS/settlement/migration scaffolds
 - [ ] 11-02-PLAN.md — Authoritative schema: inventory/match_results reshape, match_settlements, 4 SECURITY DEFINER RPCs, v1.0 backfill + [BLOCKING] schema apply
 - [ ] 11-03-PLAN.md — Services seam: inventory/settlement/profile clients; retire client-authoritative unlock from account.ts
 - [ ] 11-04-PLAN.md — RLS proof: GREEN idempotency/concurrency/forged-grant/mismatch/migration tests against live schema
 - [ ] 11-05-PLAN.md — Scene wiring: retire recordResult, submit match report, escape username, provision_account, profile + spend-to-unlock
+
 **UI hint**: yes
 
 ### Phase 12: Progression & Upgrades
@@ -120,7 +122,7 @@ UI from scratch.
   - [x] 12-01-PLAN.md — Wave 0: per-level stat tables (UNIT_LEVELS/TOWER_LEVELS) + resolveUnitStats/resolveTowerStats + clampLevels guard (D-12) + RED test scaffolds (PROG-03/04)
   - [x] 12-02-PLAN.md — upgrades table + upgrade_spend SECURITY DEFINER RPC + progression.ts seam; migration applied live + RPC verified via REST; formal upgrades-rls suite runs in CI (PROG-01/02/04)
   - [x] 12-03-PLAN.md — sim level injection: createWorld/spawnUnit/spawnAI resolve stats from per-side level maps; sim-levels GREEN; level-1 invariant + sim purity preserved (PROG-03)
-  - [~] 12-04-PLAN.md — realtime level exchange + clamp + scene wiring + UpgradeScene (Tasks 1-2 done); [BLOCKING] two-client parity + upgrade-screen in-app verify (T3) PENDING (PROG-01/02/03)
+  - [x] 12-04-PLAN.md — realtime level exchange + clamp + scene wiring + UpgradeScene; two-client parity + upgrade-screen in-app verify approved 2026-06-14 (PROG-01/02/03)
 
 **UI hint**: yes
 
@@ -166,6 +168,6 @@ Phases execute in numeric order: 9 → 10 → 11 → 12 → 13 → 14
 | 9. Backend Foundations & Integrity | v2.0 | 6/6 | Complete   | 2026-06-12 |
 | 10. Services & Simulation Refactor | v2.0 | 5/5 | Complete   | 2026-06-13 |
 | 11. Accounts & Economy | v2.0 | 5/5 | Complete   | 2026-06-13 |
-| 12. Progression & Upgrades | v2.0 | 0/TBD | Not started | - |
+| 12. Progression & Upgrades | v2.0 | 4/4 | Complete   | 2026-06-14 |
 | 13. Matchmaking & Ranking | v2.0 | 0/TBD | Not started | - |
 | 14. Battle Authority & Result Validation | v2.0 | 0/TBD | Not started | - |

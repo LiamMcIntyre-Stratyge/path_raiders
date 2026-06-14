@@ -38,10 +38,10 @@ requirements below are systems/logic, and UI tasks mean *integrating* those desi
 
 ### Progression & Upgrades (PROG)
 
-- [ ] **PROG-01**: A player can spend currency to upgrade individual units to higher levels that persist between matches.
-- [ ] **PROG-02**: A player can upgrade tower / faction power that persists between matches.
-- [ ] **PROG-03**: Unit and tower stats used in battle reflect the player's persisted upgrade levels for both participants.
-- [ ] **PROG-04**: Upgrade costs and effects come from a server-side balance config (not client-editable), and progression is stored as levels (not denormalized stats) so balance can be changed safely.
+- [x] **PROG-01**: A player can spend currency to upgrade individual units to higher levels that persist between matches.
+- [x] **PROG-02**: A player can upgrade tower / faction power that persists between matches.
+- [x] **PROG-03**: Unit and tower stats used in battle reflect the player's persisted upgrade levels for both participants.
+- [x] **PROG-04**: Upgrade costs and effects come from a server-side balance config (not client-editable), and progression is stored as levels (not denormalized stats) so balance can be changed safely.
 
 ### Matchmaking & Lobbies (MM)
 
@@ -106,10 +106,10 @@ Every v2.0 requirement maps to exactly one phase. Coverage: 30/30.
 | ECON-03 | Phase 11 — Accounts & Economy | Pending |
 | ECON-04 | Phase 11 — Accounts & Economy | Pending |
 | ECON-05 | Phase 11 — Accounts & Economy | Pending |
-| PROG-01 | Phase 12 — Progression & Upgrades | Pending |
-| PROG-02 | Phase 12 — Progression & Upgrades | Pending |
-| PROG-03 | Phase 12 — Progression & Upgrades | Pending |
-| PROG-04 | Phase 12 — Progression & Upgrades | Pending |
+| PROG-01 | Phase 12 — Progression & Upgrades | Complete |
+| PROG-02 | Phase 12 — Progression & Upgrades | Complete |
+| PROG-03 | Phase 12 — Progression & Upgrades | Complete |
+| PROG-04 | Phase 12 — Progression & Upgrades | Complete |
 | MM-01 | Phase 13 — Matchmaking & Ranking | Pending |
 | MM-02 | Phase 13 — Matchmaking & Ranking | Pending |
 | MM-03 | Phase 13 — Matchmaking & Ranking | Pending |
