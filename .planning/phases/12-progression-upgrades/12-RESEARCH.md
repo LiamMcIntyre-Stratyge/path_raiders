@@ -916,9 +916,13 @@ describe('clampLevels guard (D-12)', () => {
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Cost display: client mirror vs separate RPC**
+> All three were resolved during planning (Phase 12 plans 01–04): (1) cost display → display-only
+> `UPGRADE_COSTS` mirror in plan 01; (2) LoadoutScene stat display → plan 04 task 2; (3) launchGame
+> level data-flow → threaded through plans 01–04. Retained below for rationale.
+
+1. **Cost display: client mirror vs separate RPC** — RESOLVED (display-only mirror, plan 01)
    - What we know: the upgrade screen must show next-level cost before the user taps spend.
    - What's unclear: D-13 leaves cost design to Claude, but D-03 says "server-side balance config."
    - Recommendation: Mirror as display-only constants in a separate `UPGRADE_COSTS` object in UnitData/TowerData (same pattern as economy.test.ts mirrors WIN_REWARD). Clearly document as "display mirror, not authority." This is the simplest and follows the established P11 pattern.
