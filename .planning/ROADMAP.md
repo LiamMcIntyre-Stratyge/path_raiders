@@ -34,7 +34,7 @@ UI from scratch.
 - [x] **Phase 9: Backend Foundations & Integrity** - Committed migrations, RLS, real identity, secret-leak guard, and a test harness — make the backend reviewable and safe (completed 2026-06-12)
 - [x] **Phase 10: Services & Simulation Refactor** - Extract a typed services layer and a pure `src/sim/` battle module; behavior-preserving de-risking refactor (completed 2026-06-13)
 - [~] **Phase 11: Accounts & Economy** - Server-truth accounts, profiles, wallet, and unit unlocks; first real authority move on the safe non-realtime surface _(IMPLEMENTED — 5/5 plans, build green; pending: RLS-suite GREEN + in-app verify, both blocked on remote createUser DB error)_
-- [ ] **Phase 12: Progression & Upgrades** - Server-side level-based unit/tower upgrades that persist and feed back into battle stats
+- [ ] **Phase 12: Progression & Upgrades** - Server-side level-based unit/tower upgrades that persist and feed back into battle stats (implemented 2026-06-14; 12-02 migration live + RPC verified; 12-04 two-client in-app verify pending)
 - [ ] **Phase 13: Matchmaking & Ranking** - Quick Match with hidden-MMR pairing, race-safe match lifecycle, visible trophy rank, and match history
 - [ ] **Phase 14: Battle Authority & Result Validation** - Determinism pass plus server-validated match reports settling rewards, progression, and rating
 
@@ -120,9 +120,9 @@ UI from scratch.
 **Plans**: 4 plans
 
   - [x] 12-01-PLAN.md — Wave 0: per-level stat tables + resolvers + clampLevels guard + RED test scaffolds (PROG-03/04)
-  - [ ] 12-02-PLAN.md — upgrades table + upgrade_spend RPC + progression.ts seam + [BLOCKING] schema push + RLS GREEN (PROG-01/02/04)
+  - [x] 12-02-PLAN.md — upgrades table + upgrade_spend RPC + progression.ts seam + schema pushed live + RPC verified via REST (deduct/insufficient/deny-write/select-own); vitest RLS suite optional (PROG-01/02/04)
   - [x] 12-03-PLAN.md — sim level injection: createWorld/spawnUnit/spawnAI resolve stats from levels (PROG-03)
-  - [ ] 12-04-PLAN.md — realtime level exchange + clamp + scene wiring + upgrade screen + two-client parity gate (PROG-01/02/03)
+  - [~] 12-04-PLAN.md — realtime level exchange + clamp + scene wiring + upgrade screen (T1-T2 done); [BLOCKING] two-client parity + upgrade-screen in-app verify (T3) PENDING (PROG-01/02/03)
 
 **UI hint**: yes
 
@@ -168,6 +168,6 @@ Phases execute in numeric order: 9 → 10 → 11 → 12 → 13 → 14
 | 9. Backend Foundations & Integrity | v2.0 | 6/6 | Complete   | 2026-06-12 |
 | 10. Services & Simulation Refactor | v2.0 | 1/5 | In progress | - |
 | 11. Accounts & Economy | v2.0 | 0/TBD | Not started | - |
-| 12. Progression & Upgrades | v2.0 | 2/4 | In Progress|  |
+| 12. Progression & Upgrades | v2.0 | 4/4 | Complete   | 2026-06-14 |
 | 13. Matchmaking & Ranking | v2.0 | 0/TBD | Not started | - |
 | 14. Battle Authority & Result Validation | v2.0 | 0/TBD | Not started | - |

@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-06-12)
 
 Phase: 12 (progression-upgrades) — ◆ IMPLEMENTED, 2 blocking checkpoints pending
 Plan: 4 of 4 coded (12-01…12-04). 12-01 (per-level tables/resolvers/clampLevels + RED scaffolds) and 12-03 (sim level injection) FULLY COMPLETE. 12-02 Tasks 1-2 (upgrades migration SQL + progression.ts seam) done — Task 3 (push migration to remote + upgrades-rls GREEN) is a BLOCKING checkpoint. 12-04 Tasks 1-2 (PlacementScene level exchange/clamp, LoadoutScene resolved-stat display, new UpgradeScene, scene wiring) done — Task 3 (two-client parity + upgrade-screen in-app verify) is a BLOCKING checkpoint.
-Status: Code complete; awaiting user action on the 2 checkpoints below
+Status: Code complete; 12-02 T3 DONE (migration live + RPC verified). Only 12-04 T3 (two-client in-app verify) remains.
 
 Progress: [█████████░] 90% (Phases 9 & 10 complete; Phase 11 implemented-verifying; Phase 12 implemented, 2 checkpoints pending)
 
@@ -35,11 +35,7 @@ Build/test state: prod `tsc --noEmit` clean; `npm run build` passes; unit suite 
 
 ### Phase 12 blocking checkpoints (require user action, in order)
 
-1. **12-02 Task 3 — push progression migration + RLS GREEN** (resume-signal: type `"applied"`):
-   - ✓ createUser/signUp 500 blocker RESOLVED (see Blockers) — RLS `seedUser` is unblocked.
-   - Ensure P11 migration `20260613061943_accounts_economy.sql` is live on remote first (wallet/inventory must exist).
-   - ⚠ Drop the stray empty `public.upgrades` stub first (or guard the migration) — else the push fails "relation already exists" (see Blockers).
-   - `SUPABASE_ACCESS_TOKEN` exported → `supabase db push` → `supabase migration list` shows `20260614000000_progression` (and `20260614010000_auth_signup_trigger`, a no-op against the already-fixed live trigger) → `npx vitest run --project rls -- upgrades-rls` GREEN.
+1. ✓ **12-02 Task 3 — DONE 2026-06-14.** Stub dropped, progression migration applied live, `upgrade_spend` RPC proven via REST (deduct/increment, insufficient_funds, deny-direct-write INSERT 42501, deny UPDATE 0-rows, select-own read). Migration history records `20260614000000` + `20260614010000`. Optional formal confirmation still available: `npx vitest run --project rls -- upgrades-rls` (env mapped from .env.local) — the live behaviors are already proven, so this is belt-and-suspenders.
 2. **12-04 Task 3 — two-client parity + upgrade-screen verify** (resume-signal: type `"approved"`), gated on checkpoint 1 being live:
    - `npm run dev`; Lobby → settings gear → Upgrades screen; upgrade a unit + the tower track; confirm balance deduct, level increment, delta preview, persistence after reload; non-owned shows "UNLOCK FIRST" (D-16), level-5 shows "MAX LEVEL" (D-10).
    - Two clients with different levels → multiplayer match → each sees own effective stats in Loadout; each renders OPPONENT at opponent's clamped levels; both agree on result (PROG-03 parity).
@@ -79,7 +75,7 @@ Open follow-ups (carried from Phase 11, non-blocking):
 ### Blockers
 
 - ✓ **RESOLVED 2026-06-14: Remote `auth.users` createUser/signUp 500.** Root cause: the dashboard-created `on_auth_user_created` trigger → `public.handle_new_user()` inserted `profiles.username` as NULL (email signup sends no username metadata; `profiles.username` is NOT NULL) → `23502` aborted the auth.users txn → `500: Database error creating new user`. Fixed live (coalesce a non-null `commander_<id>` username fallback + `exception when others` guards around both the profiles insert and `provision_account`). Verified by a live `POST /auth/v1/signup` → HTTP 200 with a valid profile (`commander_…`) + wallet (100). Captured as a versioned, idempotent migration so a DB reset can't reintroduce it: `supabase/migrations/20260614010000_auth_signup_trigger.sql` (commit 9284316). The 11-04 RLS suite + 11-05 Task 4 are no longer gated on this.
-- ⚠ **NEW (gates 12-02 T3 push): stray `public.upgrades` table on remote.** A pre-existing empty stub (`id uuid`, `owner uuid`; 0 rows, RLS on, 1 policy, no inbound FKs) — NOT the 12-02 schema (`user_id, scope, target_id, level`). `supabase db push` of `20260614000000_progression.sql` will fail with "relation already exists" until this is removed. Options: drop the empty stub (`drop table if exists public.upgrades cascade;`) before pushing, or prepend that guard to the 12-02 migration. Needs user decision (destructive on remote, though empty).
+- ✓ **RESOLVED 2026-06-14: stray `public.upgrades` stub + 12-02 migration applied live.** The empty stub (0 rows) was dropped via MCP and the real progression schema applied to remote: `public.upgrades (user_id, scope, target_id, level)`, RLS select-own only (deny-by-default), `upgrade_spend` RPC, grants. Both migrations recorded in `supabase_migrations.schema_migrations` at their exact repo versions (`20260614000000`, `20260614010000`), so a later `supabase db push` is a clean no-op. RPC verified live via REST with a real user JWT: spend→`ok,new_level:2,new_balance:0`; repeat→`insufficient_funds`; forged INSERT→`403 42501 RLS violation`; forged UPDATE→0 rows; select-own read returns the row. (Migration `20260614000000` also gained an in-file `grant all on table public.upgrades` — commit 46a0cb5 — so it's self-contained after the stub drop.)
 - **Security follow-up (.env.local):** service-role key is stored as `VITE__SUPABASE_SERVICE_ROLE_KEY` — `VITE_` prefix means Vite would bundle the secret into the client if any `src/` reads it. Rename to a non-`VITE_` name; confirm no `src/` reference. Vitest also doesn't auto-load `.env.local`; RLS env (`SUPABASE_URL/ANON_KEY/SERVICE_ROLE_KEY`) must be exported (CI) or mapped for local runs.
 
 ### Todos
