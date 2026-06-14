@@ -35,7 +35,7 @@ Build/test state: prod `tsc --noEmit` clean; `npm run build` passes; unit suite 
 
 ### Phase 12 blocking checkpoints (require user action, in order)
 
-1. ✓ **12-02 Task 3 — DONE 2026-06-14.** Stub dropped, progression migration applied live, `upgrade_spend` RPC proven via REST (deduct/increment, insufficient_funds, deny-direct-write INSERT 42501, deny UPDATE 0-rows, select-own read). Migration history records `20260614000000` + `20260614010000`. Optional formal confirmation still available: `npx vitest run --project rls -- upgrades-rls` (env mapped from .env.local) — the live behaviors are already proven, so this is belt-and-suspenders.
+1. ✓ **12-02 Task 3 — DONE 2026-06-14.** Stub dropped, progression migration applied live (history version `20260614000000`), `upgrade_spend` RPC proven via REST (deduct/increment, insufficient_funds, deny-direct-write INSERT 42501, deny UPDATE 0-rows, select-own read). Formal `upgrades-rls` vitest suite runs in **CI** (Job 2 boots a local stack via `supabase start` + `db reset`; it cannot run locally against remote — `test_create_user` is intentionally remote-absent, A3/A4 containment). The live REST behaviors already prove the RPC; CI is the formal gate on push.
 2. **12-04 Task 3 — two-client parity + upgrade-screen verify** (resume-signal: type `"approved"`), gated on checkpoint 1 being live:
    - `npm run dev`; Lobby → settings gear → Upgrades screen; upgrade a unit + the tower track; confirm balance deduct, level increment, delta preview, persistence after reload; non-owned shows "UNLOCK FIRST" (D-16), level-5 shows "MAX LEVEL" (D-10).
    - Two clients with different levels → multiplayer match → each sees own effective stats in Loadout; each renders OPPONENT at opponent's clamped levels; both agree on result (PROG-03 parity).
@@ -74,8 +74,9 @@ Open follow-ups (carried from Phase 11, non-blocking):
 
 ### Blockers
 
-- ✓ **RESOLVED 2026-06-14: Remote `auth.users` createUser/signUp 500.** Root cause: the dashboard-created `on_auth_user_created` trigger → `public.handle_new_user()` inserted `profiles.username` as NULL (email signup sends no username metadata; `profiles.username` is NOT NULL) → `23502` aborted the auth.users txn → `500: Database error creating new user`. Fixed live (coalesce a non-null `commander_<id>` username fallback + `exception when others` guards around both the profiles insert and `provision_account`). Verified by a live `POST /auth/v1/signup` → HTTP 200 with a valid profile (`commander_…`) + wallet (100). Captured as a versioned, idempotent migration so a DB reset can't reintroduce it: `supabase/migrations/20260614010000_auth_signup_trigger.sql` (commit 9284316). The 11-04 RLS suite + 11-05 Task 4 are no longer gated on this.
-- ✓ **RESOLVED 2026-06-14: stray `public.upgrades` stub + 12-02 migration applied live.** The empty stub (0 rows) was dropped via MCP and the real progression schema applied to remote: `public.upgrades (user_id, scope, target_id, level)`, RLS select-own only (deny-by-default), `upgrade_spend` RPC, grants. Both migrations recorded in `supabase_migrations.schema_migrations` at their exact repo versions (`20260614000000`, `20260614010000`), so a later `supabase db push` is a clean no-op. RPC verified live via REST with a real user JWT: spend→`ok,new_level:2,new_balance:0`; repeat→`insufficient_funds`; forged INSERT→`403 42501 RLS violation`; forged UPDATE→0 rows; select-own read returns the row. (Migration `20260614000000` also gained an in-file `grant all on table public.upgrades` — commit 46a0cb5 — so it's self-contained after the stub drop.)
+- ✓ **RESOLVED 2026-06-14: Remote `auth.users` createUser/signUp 500.** Root cause: the dashboard-created `on_auth_user_created` trigger → `public.handle_new_user()` inserted `profiles.username` as NULL (email signup sends no username metadata; `profiles.username` is NOT NULL) → `23502` aborted the auth.users txn → `500: Database error creating new user`. Fixed live (coalesce a non-null `commander_<id>` username fallback + `exception when others` guards around both the profiles insert and `provision_account`). Verified by a live `POST /auth/v1/signup` → HTTP 200 with a valid profile (`commander_…`) + wallet (100). The 11-04 RLS suite + 11-05 Task 4 are no longer gated on this.
+  - **Trigger is managed OUT-OF-BAND on remote — intentionally NOT in migrations** (same A3/A4 containment philosophy as `seed.sql`; the RLS suite's `test_create_user` requires bare auth.users rows with no auto-provisioning). It was briefly captured as migration `20260614010000_auth_signup_trigger.sql` (commit 9284316) but that **broke the CI RLS suite** (the trigger fired during `test_create_user` seeding → `profiles` PK-violation + wallet=100 vs the tests' bare-user/zero-balance assumptions), so the migration was **removed** and its history row deleted from remote (2026-06-14). A fresh restore from migrations has no trigger — and needs none: without the trigger, signup just creates the `auth.users` row (no 500) and the app provisions via `provision_account` + `upsertProfile`. The corrected `handle_new_user()` body for reference (if ever re-applying the live trigger): `insert into public.profiles (id, username) values (new.id, coalesce(nullif(new.raw_user_meta_data->>'username',''),'commander_'||left(new.id::text,8))) on conflict (id) do nothing` + guarded `perform public.provision_account(new.id)`, both wrapped in `exception when others then raise warning`.
+- ✓ **RESOLVED 2026-06-14: stray `public.upgrades` stub + 12-02 migration applied live.** The empty stub (0 rows) was dropped via MCP and the real progression schema applied to remote: `public.upgrades (user_id, scope, target_id, level)`, RLS select-own only (deny-by-default), `upgrade_spend` RPC, grants. Recorded in `supabase_migrations.schema_migrations` at its exact repo version (`20260614000000`), so a later `supabase db push` is a clean no-op. (Remote migration history now matches the repo migrations exactly: baseline, foundations, accounts_economy, table_grants, progression.) RPC verified live via REST with a real user JWT: spend→`ok,new_level:2,new_balance:0`; repeat→`insufficient_funds`; forged INSERT→`403 42501 RLS violation`; forged UPDATE→0 rows; select-own read returns the row. (Migration `20260614000000` also gained an in-file `grant all on table public.upgrades` — commit 46a0cb5 — so it's self-contained after the stub drop.)
 - **Security follow-up (.env.local):** service-role key is stored as `VITE__SUPABASE_SERVICE_ROLE_KEY` — `VITE_` prefix means Vite would bundle the secret into the client if any `src/` reads it. Rename to a non-`VITE_` name; confirm no `src/` reference. Vitest also doesn't auto-load `.env.local`; RLS env (`SUPABASE_URL/ANON_KEY/SERVICE_ROLE_KEY`) must be exported (CI) or mapped for local runs.
 
 ### Todos
@@ -102,15 +103,18 @@ GREEN, level-1 invariant preserved, sim purity intact) FULLY COMPLETE; 12-02 Tas
 upgrade_spend SECURITY DEFINER RPC migration, progression.ts seam) done; 12-04 Tasks 1-2 (PlacementScene level
 exchange/clamp, LoadoutScene resolved-stat display, new UpgradeScene, Lobby gear wiring) done. Build green:
 tsc clean, vite build passes, unit 94/94 GREEN.
-**createUser/signUp 500 blocker RESOLVED 2026-06-14** (handle_new_user null-username — fixed live + captured as
-migration 20260614010000; verified by a live signup → HTTP 200). **Two BLOCKING checkpoints remain**: (1) 12-02 T3
-push migration to remote + upgrades-rls GREEN — now only gated on dropping the stray empty `public.upgrades` stub
-first (see Blockers); (2) 12-04 T3 two-client parity + upgrade-screen in-app verify — gated on (1) being live.
-**Next:** (1) drop the stray `public.upgrades` stub (or guard the migration), (2) `supabase db push` the P12
-migrations (after confirming P11 migration is live), (3) `npx vitest run --project rls -- upgrades-rls` GREEN →
-reply `"applied"`, (4) `npm run dev` two-client verify → reply `"approved"`, (5) /gsd:verify-work 12. Also still
-open from P11: rename VITE__SUPABASE_SERVICE_ROLE_KEY → non-VITE_ (security), and P11's own two pending
-verifications (now unblocked — RLS suite can run).
+**createUser/signUp 500 blocker RESOLVED 2026-06-14** (handle_new_user null-username — fixed live; verified by a
+live signup → HTTP 200; trigger managed out-of-band, NOT in migrations — see Blockers). **12-02 T3 DONE**: stray
+`upgrades` stub dropped, progression migration applied live, `upgrade_spend` RPC proven via REST. **Audit-fix
+2026-06-14** (`/gsd-audit-fix` on the RLS suite): diagnosed that the suite is CI/local-stack-only by design
+(`test_create_user` is remote-absent by A3/A4 containment) and fixed two migration bugs that would fail a fresh
+`supabase db reset`: (a) `table_grants.sql` granted `public.upgrades` before it existed → removed (progression
+grants it now); (b) the `auth_signup_trigger` migration fired the trigger during `test_create_user` seeding →
+removed (broke bare-user test assumptions). Remote migration history + live trigger reconciled.
+**One BLOCKING checkpoint remains**: 12-04 T3 two-client parity + upgrade-screen in-app verify (`npm run dev`).
+**Next:** (1) push branch → CI Job 2 runs the full RLS suite (incl. upgrades-rls) against a fresh local stack —
+this is the formal RLS gate; (2) `npm run dev` two-client verify → reply `"approved"`; (3) /gsd:verify-work 12.
+Also still open from P11: rename VITE__SUPABASE_SERVICE_ROLE_KEY → non-VITE_ (security).
 Resume file (P12 context): .planning/phases/12-progression-upgrades/12-CONTEXT.md
 
 ✓ Resolved 2026-06-12: Reworded REQUIREMENTS.md (FND-02) + ROADMAP.md (Phase 9 Goal/SC#2)
