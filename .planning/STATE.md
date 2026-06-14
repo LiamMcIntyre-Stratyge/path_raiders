@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Persistent Game Foundations
 status: executing
-stopped_at: Phase 11 (accounts-economy) implemented — all 5 plans authored, build green; 2 verifications pending on remote createUser fix
+stopped_at: Phase 11 (accounts-economy) COMPLETE — RLS suite 18/18 green in CI; GoTrue signup outage fixed; Task 4 in-app verification passed. Ready for Phase 12.
 last_updated: "2026-06-13"
-last_activity: 2026-06-13 -- Phase 11 executed (waves 1-4); migration pushed to remote; RLS-green + in-app verify blocked on auth.users createUser DB error
+last_activity: 2026-06-13 -- Phase 11 closed: fixed remote GoTrue 500 (auth.users handle_new_user trigger NOT-NULL username abort), RLS 18/18 green, Task 4 earn→spend/XSS verified live
 progress:
   total_phases: 6
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 16
-  completed_plans: 18
+  completed_plans: 16
   percent: 50
 ---
 
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-12)
 
 **Core value:** The realtime lane battle is the heart of the game; every meta-system (accounts, economy, progression, matchmaking) exists to make that loop matter over time.
-**Current focus:** Phase 11 (accounts-economy) — implemented; 2 verifications pending on remote DB fix
+**Current focus:** Phase 11 (accounts-economy) — ✅ COMPLETE & VERIFIED. Next: Phase 12 (progression-upgrades).
 
 ## Current Position
 
-Phase: 11 (accounts-economy) — ◆ IMPLEMENTED, verification pending
-Plan: 5 of 5 authored (11-01…11-05). 11-01/02/03 fully done; 11-04 (RLS GREEN) + 11-05 Task 4 (in-app verify) blocked on remote createUser DB error.
-Status: Migration pushed to remote Supabase (user "applied"). Build green (tsc + vite build). API seam + scene wiring complete; client unlock authority retired; username XSS-escaped.
-Last activity: 2026-06-13 -- Phase 11 executed (waves 1-4)
+Phase: 11 (accounts-economy) — ✅ COMPLETE (all verifications passed)
+Plan: 5 of 5 done (11-01…11-05). 11-04 RLS suite 18/18 GREEN in CI; 11-05 Task 4 (in-app earn→spend + XSS) verified live against the hosted project.
+Status: Remote GoTrue signup outage fixed (hardened `handle_new_user` trigger fn, migration 20260613070000); RLS suite refactored off the broken GoTrue admin API to SQL-seeded users + minted JWTs (18/18 green); economy loop verified end-to-end on live (signup→100, unlock→0/insufficient, settle +50/+15), XSS escaping confirmed. Build green (tsc + vite build).
+Last activity: 2026-06-13 -- Phase 11 closed
 
-Progress: [█████░░░░░] 50% (Phases 9 & 10 complete; Phase 11 implemented, verifying)
+Progress: [█████░░░░░] 50% (Phases 9, 10 & 11 complete; next Phase 12)
 
 Open follow-ups (non-blocking, by design):
 
@@ -66,7 +66,7 @@ Open follow-ups (non-blocking, by design):
 
 ### Blockers
 
-- **Remote `auth.users` createUser fails** (`500 unexpected_failure: "Database error creating new user"`) on the linked Supabase project (obcwvyaqdihdhcldewpe). Blocks 11-04 (full RLS suite GREEN) and 11-05 Task 4 (in-app earn→spend/XSS verify). Almost certainly a dashboard-created `on auth.users` trigger/function that raises (no such trigger in migrations). Diagnose via Supabase MCP `get_logs`(auth) + `execute_sql` on pg_trigger, or paste the trigger body. NOT an email-confirmation issue (tests use admin createUser email_confirm:true).
+- ~~**Remote `auth.users` createUser fails**~~ — **RESOLVED 2026-06-13.** Confirmed via Supabase MCP `get_logs`(auth): a dashboard-created `on_auth_user_created` trigger ran `handle_new_user`, which inserted `profiles(id, username)` from signup metadata; app signups carry no metadata → `NULL` into `NOT NULL profiles.username` → `auth.users` insert aborted → 500. Fixed by hardening `handle_new_user` (coalesce username fallback + guard both side effects), applied live and captured in migration `20260613070000_signup_trigger_hardening.sql`. RLS suite was independently refactored off the GoTrue admin API (SQL-seeded users + minted JWTs); 18/18 green in CI.
 - **Security follow-up (.env.local):** service-role key is stored as `VITE__SUPABASE_SERVICE_ROLE_KEY` — `VITE_` prefix means Vite would bundle the secret into the client if any `src/` reads it. Rename to a non-`VITE_` name; confirm no `src/` reference. Vitest also doesn't auto-load `.env.local`; RLS env (`SUPABASE_URL/ANON_KEY/SERVICE_ROLE_KEY`) must be exported (CI) or mapped for local runs.
 
 ### Todos

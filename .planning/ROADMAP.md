@@ -33,7 +33,7 @@ UI from scratch.
 
 - [x] **Phase 9: Backend Foundations & Integrity** - Committed migrations, RLS, real identity, secret-leak guard, and a test harness — make the backend reviewable and safe (completed 2026-06-12)
 - [x] **Phase 10: Services & Simulation Refactor** - Extract a typed services layer and a pure `src/sim/` battle module; behavior-preserving de-risking refactor (completed 2026-06-13)
-- [~] **Phase 11: Accounts & Economy** - Server-truth accounts, profiles, wallet, and unit unlocks; first real authority move on the safe non-realtime surface _(IMPLEMENTED — 5/5 plans, build green; pending: RLS-suite GREEN + in-app verify, both blocked on remote createUser DB error)_
+- [x] **Phase 11: Accounts & Economy** - Server-truth accounts, profiles, wallet, and unit unlocks; first real authority move on the safe non-realtime surface (completed 2026-06-13 — 5/5 plans, RLS suite 18/18 green in CI, remote GoTrue signup outage fixed, Task 4 earn→spend/XSS verified live)
 - [ ] **Phase 12: Progression & Upgrades** - Server-side level-based unit/tower upgrades that persist and feed back into battle stats
 - [ ] **Phase 13: Matchmaking & Ranking** - Quick Match with hidden-MMR pairing, race-safe match lifecycle, visible trophy rank, and match history
 - [ ] **Phase 14: Battle Authority & Result Validation** - Determinism pass plus server-validated match reports settling rewards, progression, and rating
@@ -158,8 +158,8 @@ Phases execute in numeric order: 9 → 10 → 11 → 12 → 13 → 14
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 9. Backend Foundations & Integrity | v2.0 | 6/6 | Complete   | 2026-06-12 |
-| 10. Services & Simulation Refactor | v2.0 | 1/5 | In progress | - |
-| 11. Accounts & Economy | v2.0 | 0/TBD | Not started | - |
+| 10. Services & Simulation Refactor | v2.0 | 5/5 | Complete   | 2026-06-13 |
+| 11. Accounts & Economy | v2.0 | 5/5 | Complete   | 2026-06-13 |
 | 12. Progression & Upgrades | v2.0 | 0/TBD | Not started | - |
 | 13. Matchmaking & Ranking | v2.0 | 0/TBD | Not started | - |
 | 14. Battle Authority & Result Validation | v2.0 | 0/TBD | Not started | - |
