@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Persistent Game Foundations
 status: executing
-stopped_at: **Phase 12 (progression-upgrades) implemented** — all 4 plans coded; 12-01 & 12-03 fully complete; 12-02 & 12-04 await blocking human checkpoints (remote migration push + two-client verify),
-last_updated: "2026-06-14T06:28:29.000Z"
-last_activity: 2026-06-14 -- Phase 12 implemented (2 blocking checkpoints pending)
+stopped_at: Phase 11 (accounts-economy) COMPLETE — RLS suite 18/18 green in CI; GoTrue signup outage fixed; Task 4 in-app verification passed. Ready for Phase 12.
+last_updated: "2026-06-13"
+last_activity: 2026-06-13 -- Phase 11 closed: fixed remote GoTrue 500 (auth.users handle_new_user trigger NOT-NULL username abort), RLS 18/18 green, Task 4 earn→spend/XSS verified live
 progress:
   total_phases: 6
   completed_phases: 3
-  total_plans: 20
-  completed_plans: 18
-  percent: 90
+  total_plans: 16
+  completed_plans: 16
+  percent: 50
 ---
 
 # Project State
@@ -21,26 +21,18 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-12)
 
 **Core value:** The realtime lane battle is the heart of the game; every meta-system (accounts, economy, progression, matchmaking) exists to make that loop matter over time.
-**Current focus:** Phase 12 (progression-upgrades) — implemented; 2 blocking checkpoints pending (remote migration push + two-client verify)
+**Current focus:** Phase 11 (accounts-economy) — ✅ COMPLETE & VERIFIED. Next: Phase 12 (progression-upgrades).
 
 ## Current Position
 
-Phase: 12 (progression-upgrades) — ◆ IMPLEMENTED, 2 blocking checkpoints pending
-Plan: 4 of 4 coded (12-01…12-04). 12-01 (per-level tables/resolvers/clampLevels + RED scaffolds) and 12-03 (sim level injection) FULLY COMPLETE. 12-02 Tasks 1-2 (upgrades migration SQL + progression.ts seam) done — Task 3 (push migration to remote + upgrades-rls GREEN) is a BLOCKING checkpoint. 12-04 Tasks 1-2 (PlacementScene level exchange/clamp, LoadoutScene resolved-stat display, new UpgradeScene, scene wiring) done — Task 3 (two-client parity + upgrade-screen in-app verify) is a BLOCKING checkpoint.
-Status: Code complete; 12-02 T3 DONE (migration live + RPC verified). Only 12-04 T3 (two-client in-app verify) remains.
+Phase: 11 (accounts-economy) — ✅ COMPLETE (all verifications passed)
+Plan: 5 of 5 done (11-01…11-05). 11-04 RLS suite 18/18 GREEN in CI; 11-05 Task 4 (in-app earn→spend + XSS) verified live against the hosted project.
+Status: Remote GoTrue signup outage fixed (hardened `handle_new_user` trigger fn, migration 20260613070000); RLS suite refactored off the broken GoTrue admin API to SQL-seeded users + minted JWTs (18/18 green); economy loop verified end-to-end on live (signup→100, unlock→0/insufficient, settle +50/+15), XSS escaping confirmed. Build green (tsc + vite build).
+Last activity: 2026-06-13 -- Phase 11 closed
 
-Progress: [█████████░] 90% (Phases 9 & 10 complete; Phase 11 implemented-verifying; Phase 12 implemented, 2 checkpoints pending)
+Progress: [█████░░░░░] 50% (Phases 9, 10 & 11 complete; next Phase 12)
 
-Build/test state: prod `tsc --noEmit` clean; `npm run build` passes; unit suite 94/94 GREEN. RLS suite NOT run (blocked — see below).
-
-### Phase 12 blocking checkpoints (require user action, in order)
-
-1. ✓ **12-02 Task 3 — DONE 2026-06-14.** Stub dropped, progression migration applied live (history version `20260614000000`), `upgrade_spend` RPC proven via REST (deduct/increment, insufficient_funds, deny-direct-write INSERT 42501, deny UPDATE 0-rows, select-own read). Formal `upgrades-rls` vitest suite runs in **CI** (Job 2 boots a local stack via `supabase start` + `db reset`; it cannot run locally against remote — `test_create_user` is intentionally remote-absent, A3/A4 containment). The live REST behaviors already prove the RPC; CI is the formal gate on push.
-2. **12-04 Task 3 — two-client parity + upgrade-screen verify** (resume-signal: type `"approved"`), gated on checkpoint 1 being live:
-   - `npm run dev`; Lobby → settings gear → Upgrades screen; upgrade a unit + the tower track; confirm balance deduct, level increment, delta preview, persistence after reload; non-owned shows "UNLOCK FIRST" (D-16), level-5 shows "MAX LEVEL" (D-10).
-   - Two clients with different levels → multiplayer match → each sees own effective stats in Loadout; each renders OPPONENT at opponent's clamped levels; both agree on result (PROG-03 parity).
-
-Open follow-ups (carried from Phase 11, non-blocking):
+Open follow-ups (non-blocking, by design):
 
 - RLS integration test (test/rls/wallet-rls.test.ts) live-runs in CI on first push (no local Docker in dev).
 - Live prod deploy confirmed via user "pushed" sign-off; optional final Dashboard audit for auditability.
@@ -74,9 +66,7 @@ Open follow-ups (carried from Phase 11, non-blocking):
 
 ### Blockers
 
-- ✓ **RESOLVED 2026-06-14: Remote `auth.users` createUser/signUp 500.** Root cause: the dashboard-created `on_auth_user_created` trigger → `public.handle_new_user()` inserted `profiles.username` as NULL (email signup sends no username metadata; `profiles.username` is NOT NULL) → `23502` aborted the auth.users txn → `500: Database error creating new user`. Fixed live (coalesce a non-null `commander_<id>` username fallback + `exception when others` guards around both the profiles insert and `provision_account`). Verified by a live `POST /auth/v1/signup` → HTTP 200 with a valid profile (`commander_…`) + wallet (100). The 11-04 RLS suite + 11-05 Task 4 are no longer gated on this.
-  - **Trigger is managed OUT-OF-BAND on remote — intentionally NOT in migrations** (same A3/A4 containment philosophy as `seed.sql`; the RLS suite's `test_create_user` requires bare auth.users rows with no auto-provisioning). It was briefly captured as migration `20260614010000_auth_signup_trigger.sql` (commit 9284316) but that **broke the CI RLS suite** (the trigger fired during `test_create_user` seeding → `profiles` PK-violation + wallet=100 vs the tests' bare-user/zero-balance assumptions), so the migration was **removed** and its history row deleted from remote (2026-06-14). A fresh restore from migrations has no trigger — and needs none: without the trigger, signup just creates the `auth.users` row (no 500) and the app provisions via `provision_account` + `upsertProfile`. The corrected `handle_new_user()` body for reference (if ever re-applying the live trigger): `insert into public.profiles (id, username) values (new.id, coalesce(nullif(new.raw_user_meta_data->>'username',''),'commander_'||left(new.id::text,8))) on conflict (id) do nothing` + guarded `perform public.provision_account(new.id)`, both wrapped in `exception when others then raise warning`.
-- ✓ **RESOLVED 2026-06-14: stray `public.upgrades` stub + 12-02 migration applied live.** The empty stub (0 rows) was dropped via MCP and the real progression schema applied to remote: `public.upgrades (user_id, scope, target_id, level)`, RLS select-own only (deny-by-default), `upgrade_spend` RPC, grants. Recorded in `supabase_migrations.schema_migrations` at its exact repo version (`20260614000000`), so a later `supabase db push` is a clean no-op. (Remote migration history now matches the repo migrations exactly: baseline, foundations, accounts_economy, table_grants, progression.) RPC verified live via REST with a real user JWT: spend→`ok,new_level:2,new_balance:0`; repeat→`insufficient_funds`; forged INSERT→`403 42501 RLS violation`; forged UPDATE→0 rows; select-own read returns the row. (Migration `20260614000000` also gained an in-file `grant all on table public.upgrades` — commit 46a0cb5 — so it's self-contained after the stub drop.)
+- ~~**Remote `auth.users` createUser fails**~~ — **RESOLVED 2026-06-13.** Confirmed via Supabase MCP `get_logs`(auth): a dashboard-created `on_auth_user_created` trigger ran `handle_new_user`, which inserted `profiles(id, username)` from signup metadata; app signups carry no metadata → `NULL` into `NOT NULL profiles.username` → `auth.users` insert aborted → 500. Fixed by hardening `handle_new_user` (coalesce username fallback + guard both side effects), applied live and captured in migration `20260613070000_signup_trigger_hardening.sql`. RLS suite was independently refactored off the GoTrue admin API (SQL-seeded users + minted JWTs); 18/18 green in CI.
 - **Security follow-up (.env.local):** service-role key is stored as `VITE__SUPABASE_SERVICE_ROLE_KEY` — `VITE_` prefix means Vite would bundle the secret into the client if any `src/` reads it. Rename to a non-`VITE_` name; confirm no `src/` reference. Vitest also doesn't auto-load `.env.local`; RLS env (`SUPABASE_URL/ANON_KEY/SERVICE_ROLE_KEY`) must be exported (CI) or mapped for local runs.
 
 ### Todos
@@ -94,28 +84,18 @@ Open follow-ups (carried from Phase 11, non-blocking):
 
 ## Session Continuity
 
-Last session: 2026-06-14
-Stopped at: **Phase 12 (progression-upgrades) implemented** — all 4 plans coded & committed on `main` (sequential,
-no worktrees; gsd-sdk query layer unavailable here → executors used plain git + gsd-tools.cjs). 12-01 (per-level
-UNIT_LEVELS/TOWER_LEVELS tables, resolveUnitStats/resolveTowerStats, clampLevels D-12, RED scaffolds) FULLY
-COMPLETE; 12-03 (sim level injection — createWorld/spawnUnit/spawnAI resolve from per-side level maps, sim-levels
-GREEN, level-1 invariant preserved, sim purity intact) FULLY COMPLETE; 12-02 Tasks 1-2 (upgrades table +
-upgrade_spend SECURITY DEFINER RPC migration, progression.ts seam) done; 12-04 Tasks 1-2 (PlacementScene level
-exchange/clamp, LoadoutScene resolved-stat display, new UpgradeScene, Lobby gear wiring) done. Build green:
-tsc clean, vite build passes, unit 94/94 GREEN.
-**createUser/signUp 500 blocker RESOLVED 2026-06-14** (handle_new_user null-username — fixed live; verified by a
-live signup → HTTP 200; trigger managed out-of-band, NOT in migrations — see Blockers). **12-02 T3 DONE**: stray
-`upgrades` stub dropped, progression migration applied live, `upgrade_spend` RPC proven via REST. **Audit-fix
-2026-06-14** (`/gsd-audit-fix` on the RLS suite): diagnosed that the suite is CI/local-stack-only by design
-(`test_create_user` is remote-absent by A3/A4 containment) and fixed two migration bugs that would fail a fresh
-`supabase db reset`: (a) `table_grants.sql` granted `public.upgrades` before it existed → removed (progression
-grants it now); (b) the `auth_signup_trigger` migration fired the trigger during `test_create_user` seeding →
-removed (broke bare-user test assumptions). Remote migration history + live trigger reconciled.
-**One BLOCKING checkpoint remains**: 12-04 T3 two-client parity + upgrade-screen in-app verify (`npm run dev`).
-**Next:** (1) push branch → CI Job 2 runs the full RLS suite (incl. upgrades-rls) against a fresh local stack —
-this is the formal RLS gate; (2) `npm run dev` two-client verify → reply `"approved"`; (3) /gsd:verify-work 12.
-Also still open from P11: rename VITE__SUPABASE_SERVICE_ROLE_KEY → non-VITE_ (security).
-Resume file (P12 context): .planning/phases/12-progression-upgrades/12-CONTEXT.md
+Last session: 2026-06-13
+Stopped at: **Phase 11 (accounts-economy) executed** — all 5 plans authored and committed (waves 1-4),
+build green (tsc + vite build). 11-01 (esc helper + unit tests GREEN + RLS scaffolds), 11-02 (accounts/economy
+migration — pushed to remote by user), 11-03 (typed API seam; client-authoritative unlock retired), 11-04
+(RLS suite assertions authored), 11-05 (scene wiring: opponentId/walletBalance, reportMatchResult, esc XSS,
+provision_account on signup, ProfileScene). **Two verifications remain, both blocked on the remote
+`auth.users` createUser DB error** (see Blockers): 11-04 full RLS suite GREEN, and 11-05 Task 4 in-app
+earn→spend/XSS verify.
+**Next:** (1) fix remote createUser (Supabase MCP get_logs/execute_sql on the auth.users trigger), then
+(2) run `npx vitest run --project rls` GREEN (env mapped from .env.local), then (3) `npm run dev` Task-4 in-app
+verify, then (4) /gsd:verify-work 11. Also rename VITE__SUPABASE_SERVICE_ROLE_KEY → non-VITE_ (security).
+Resume file (P11 context): .planning/phases/11-accounts-economy/11-CONTEXT.md
 
 ✓ Resolved 2026-06-12: Reworded REQUIREMENTS.md (FND-02) + ROADMAP.md (Phase 9 Goal/SC#2)
 to the email-only identity criterion (D-04, no anonymous auth) before planning Phase 9, so
@@ -134,7 +114,3 @@ the verifier checks against the email-only criterion.
 | Phase 10 P03 | 5min | 2 tasks | 3 files |
 | Phase 10 P04 | 6min | 2 tasks | 5 files |
 | Phase 10 P05 | ~2min | 3 tasks (2 auto + D-16 gate) | 4 files |
-| Phase 12 P01 | ~7min | 3 tasks (TDD) | 7 files |
-| Phase 12 P03 | ~12min | 2 tasks | 3 files |
-| Phase 12 P02 | ~4min | 2 of 3 (T3 blocking) | 2 files |
-| Phase 12 P04 | ~9min | 2 of 3 (T3 blocking) | 4 files |
