@@ -96,11 +96,13 @@ UI from scratch.
   5. Existing v1.0 `profiles` rows (wins, unlocked units) are migrated forward into the new model with no data loss.
 
 **Plans**: 5 plans
+
 - [ ] 11-01-PLAN.md — Wave 0: esc() XSS helper + economy unit tests + RED RLS/settlement/migration scaffolds
 - [ ] 11-02-PLAN.md — Authoritative schema: inventory/match_results reshape, match_settlements, 4 SECURITY DEFINER RPCs, v1.0 backfill + [BLOCKING] schema apply
 - [ ] 11-03-PLAN.md — Services seam: inventory/settlement/profile clients; retire client-authoritative unlock from account.ts
 - [ ] 11-04-PLAN.md — RLS proof: GREEN idempotency/concurrency/forged-grant/mismatch/migration tests against live schema
 - [ ] 11-05-PLAN.md — Scene wiring: retire recordResult, submit match report, escape username, provision_account, profile + spend-to-unlock
+
 **UI hint**: yes
 
 ### Phase 12: Progression & Upgrades
@@ -117,10 +119,11 @@ UI from scratch.
 
 **Plans**: 4 plans
 
-  - [ ] 12-01-PLAN.md — Wave 0: per-level stat tables + resolvers + clampLevels guard + RED test scaffolds (PROG-03/04)
+  - [x] 12-01-PLAN.md — Wave 0: per-level stat tables + resolvers + clampLevels guard + RED test scaffolds (PROG-03/04)
   - [ ] 12-02-PLAN.md — upgrades table + upgrade_spend RPC + progression.ts seam + [BLOCKING] schema push + RLS GREEN (PROG-01/02/04)
-  - [ ] 12-03-PLAN.md — sim level injection: createWorld/spawnUnit/spawnAI resolve stats from levels (PROG-03)
+  - [x] 12-03-PLAN.md — sim level injection: createWorld/spawnUnit/spawnAI resolve stats from levels (PROG-03)
   - [ ] 12-04-PLAN.md — realtime level exchange + clamp + scene wiring + upgrade screen + two-client parity gate (PROG-01/02/03)
+
 **UI hint**: yes
 
 ### Phase 13: Matchmaking & Ranking
@@ -165,6 +168,6 @@ Phases execute in numeric order: 9 → 10 → 11 → 12 → 13 → 14
 | 9. Backend Foundations & Integrity | v2.0 | 6/6 | Complete   | 2026-06-12 |
 | 10. Services & Simulation Refactor | v2.0 | 1/5 | In progress | - |
 | 11. Accounts & Economy | v2.0 | 0/TBD | Not started | - |
-| 12. Progression & Upgrades | v2.0 | 0/4 | Not started | - |
+| 12. Progression & Upgrades | v2.0 | 2/4 | In Progress|  |
 | 13. Matchmaking & Ranking | v2.0 | 0/TBD | Not started | - |
 | 14. Battle Authority & Result Validation | v2.0 | 0/TBD | Not started | - |

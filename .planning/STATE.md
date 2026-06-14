@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Persistent Game Foundations
 status: executing
-stopped_at: **Phase 11 (accounts-economy) executed** — all 5 plans authored and committed (waves 1-4),
-last_updated: "2026-06-14T03:08:13.290Z"
-last_activity: 2026-06-14 -- Phase 12 planning complete
+stopped_at: **Phase 12 (progression-upgrades) implemented** — all 4 plans coded; 12-01 & 12-03 fully complete; 12-02 & 12-04 await blocking human checkpoints (remote migration push + two-client verify),
+last_updated: "2026-06-14T06:28:29.000Z"
+last_activity: 2026-06-14 -- Phase 12 implemented (2 blocking checkpoints pending)
 progress:
   total_phases: 6
   completed_phases: 3
   total_plans: 20
-  completed_plans: 16
-  percent: 50
+  completed_plans: 18
+  percent: 90
 ---
 
 # Project State
@@ -21,18 +21,29 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-12)
 
 **Core value:** The realtime lane battle is the heart of the game; every meta-system (accounts, economy, progression, matchmaking) exists to make that loop matter over time.
-**Current focus:** Phase 11 (accounts-economy) — implemented; 2 verifications pending on remote DB fix
+**Current focus:** Phase 12 (progression-upgrades) — implemented; 2 blocking checkpoints pending (remote migration push + two-client verify)
 
 ## Current Position
 
-Phase: 11 (accounts-economy) — ◆ IMPLEMENTED, verification pending
-Plan: 5 of 5 authored (11-01…11-05). 11-01/02/03 fully done; 11-04 (RLS GREEN) + 11-05 Task 4 (in-app verify) blocked on remote createUser DB error.
-Status: Ready to execute
-Last activity: 2026-06-14 -- Phase 12 planning complete
+Phase: 12 (progression-upgrades) — ◆ IMPLEMENTED, 2 blocking checkpoints pending
+Plan: 4 of 4 coded (12-01…12-04). 12-01 (per-level tables/resolvers/clampLevels + RED scaffolds) and 12-03 (sim level injection) FULLY COMPLETE. 12-02 Tasks 1-2 (upgrades migration SQL + progression.ts seam) done — Task 3 (push migration to remote + upgrades-rls GREEN) is a BLOCKING checkpoint. 12-04 Tasks 1-2 (PlacementScene level exchange/clamp, LoadoutScene resolved-stat display, new UpgradeScene, scene wiring) done — Task 3 (two-client parity + upgrade-screen in-app verify) is a BLOCKING checkpoint.
+Status: Code complete; awaiting user action on the 2 checkpoints below
 
-Progress: [█████░░░░░] 50% (Phases 9 & 10 complete; Phase 11 implemented, verifying)
+Progress: [█████████░] 90% (Phases 9 & 10 complete; Phase 11 implemented-verifying; Phase 12 implemented, 2 checkpoints pending)
 
-Open follow-ups (non-blocking, by design):
+Build/test state: prod `tsc --noEmit` clean; `npm run build` passes; unit suite 94/94 GREEN. RLS suite NOT run (blocked — see below).
+
+### Phase 12 blocking checkpoints (require user action, in order)
+
+1. **12-02 Task 3 — push progression migration + RLS GREEN** (resume-signal: type `"applied"`):
+   - Ensure P11 migration `20260613061943_accounts_economy.sql` is live on remote first (wallet/inventory must exist).
+   - Resolve the remote `auth.users` createUser 500 blocker (still open — see Blockers) — it gates the RLS suite's `seedUser`.
+   - `SUPABASE_ACCESS_TOKEN` exported → `supabase db push` → `supabase migration list` shows `20260614000000_progression` → `npx vitest run --project rls -- upgrades-rls` GREEN.
+2. **12-04 Task 3 — two-client parity + upgrade-screen verify** (resume-signal: type `"approved"`), gated on checkpoint 1 being live:
+   - `npm run dev`; Lobby → settings gear → Upgrades screen; upgrade a unit + the tower track; confirm balance deduct, level increment, delta preview, persistence after reload; non-owned shows "UNLOCK FIRST" (D-16), level-5 shows "MAX LEVEL" (D-10).
+   - Two clients with different levels → multiplayer match → each sees own effective stats in Loadout; each renders OPPONENT at opponent's clamped levels; both agree on result (PROG-03 parity).
+
+Open follow-ups (carried from Phase 11, non-blocking):
 
 - RLS integration test (test/rls/wallet-rls.test.ts) live-runs in CI on first push (no local Docker in dev).
 - Live prod deploy confirmed via user "pushed" sign-off; optional final Dashboard audit for auditability.
@@ -84,18 +95,24 @@ Open follow-ups (non-blocking, by design):
 
 ## Session Continuity
 
-Last session: 2026-06-13
-Stopped at: **Phase 11 (accounts-economy) executed** — all 5 plans authored and committed (waves 1-4),
-build green (tsc + vite build). 11-01 (esc helper + unit tests GREEN + RLS scaffolds), 11-02 (accounts/economy
-migration — pushed to remote by user), 11-03 (typed API seam; client-authoritative unlock retired), 11-04
-(RLS suite assertions authored), 11-05 (scene wiring: opponentId/walletBalance, reportMatchResult, esc XSS,
-provision_account on signup, ProfileScene). **Two verifications remain, both blocked on the remote
-`auth.users` createUser DB error** (see Blockers): 11-04 full RLS suite GREEN, and 11-05 Task 4 in-app
-earn→spend/XSS verify.
-**Next:** (1) fix remote createUser (Supabase MCP get_logs/execute_sql on the auth.users trigger), then
-(2) run `npx vitest run --project rls` GREEN (env mapped from .env.local), then (3) `npm run dev` Task-4 in-app
-verify, then (4) /gsd:verify-work 11. Also rename VITE__SUPABASE_SERVICE_ROLE_KEY → non-VITE_ (security).
-Resume file (P11 context): .planning/phases/11-accounts-economy/11-CONTEXT.md
+Last session: 2026-06-14
+Stopped at: **Phase 12 (progression-upgrades) implemented** — all 4 plans coded & committed on `main` (sequential,
+no worktrees; gsd-sdk query layer unavailable here → executors used plain git + gsd-tools.cjs). 12-01 (per-level
+UNIT_LEVELS/TOWER_LEVELS tables, resolveUnitStats/resolveTowerStats, clampLevels D-12, RED scaffolds) FULLY
+COMPLETE; 12-03 (sim level injection — createWorld/spawnUnit/spawnAI resolve from per-side level maps, sim-levels
+GREEN, level-1 invariant preserved, sim purity intact) FULLY COMPLETE; 12-02 Tasks 1-2 (upgrades table +
+upgrade_spend SECURITY DEFINER RPC migration, progression.ts seam) done; 12-04 Tasks 1-2 (PlacementScene level
+exchange/clamp, LoadoutScene resolved-stat display, new UpgradeScene, Lobby gear wiring) done. Build green:
+tsc clean, vite build passes, unit 94/94 GREEN.
+**Two BLOCKING checkpoints remain** (see "Phase 12 blocking checkpoints" above): (1) 12-02 T3 push migration to
+remote + upgrades-rls GREEN — still gated on the open remote `auth.users` createUser 500 blocker; (2) 12-04 T3
+two-client parity + upgrade-screen in-app verify — gated on (1) being live.
+**Next:** (1) resolve remote createUser 500 (Supabase MCP get_logs/execute_sql on the auth.users trigger — shared
+blocker with P11), (2) `supabase db push` the P12 migration (after confirming P11 migration is live), (3)
+`npx vitest run --project rls -- upgrades-rls` GREEN → reply `"applied"`, (4) `npm run dev` two-client verify →
+reply `"approved"`, (5) /gsd:verify-work 12. Also still open from P11: rename VITE__SUPABASE_SERVICE_ROLE_KEY →
+non-VITE_ (security), and P11's own two pending verifications.
+Resume file (P12 context): .planning/phases/12-progression-upgrades/12-CONTEXT.md
 
 ✓ Resolved 2026-06-12: Reworded REQUIREMENTS.md (FND-02) + ROADMAP.md (Phase 9 Goal/SC#2)
 to the email-only identity criterion (D-04, no anonymous auth) before planning Phase 9, so
@@ -114,3 +131,7 @@ the verifier checks against the email-only criterion.
 | Phase 10 P03 | 5min | 2 tasks | 3 files |
 | Phase 10 P04 | 6min | 2 tasks | 5 files |
 | Phase 10 P05 | ~2min | 3 tasks (2 auto + D-16 gate) | 4 files |
+| Phase 12 P01 | ~7min | 3 tasks (TDD) | 7 files |
+| Phase 12 P03 | ~12min | 2 tasks | 3 files |
+| Phase 12 P02 | ~4min | 2 of 3 (T3 blocking) | 2 files |
+| Phase 12 P04 | ~9min | 2 of 3 (T3 blocking) | 4 files |
