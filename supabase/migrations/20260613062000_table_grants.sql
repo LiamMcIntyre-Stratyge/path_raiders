@@ -12,12 +12,17 @@
 -- RLS suite fails with `permission denied for table wallet/inventory`. GRANT is
 -- idempotent, so re-granting where the privilege already exists is a harmless no-op.
 
+-- NOTE: public.upgrades is intentionally NOT granted here. It does not exist yet at this
+-- migration's point in the timeline — it is created later by 20260614000000_progression.sql,
+-- which grants it itself (self-contained). Listing it here broke fresh-DB runs (`supabase db
+-- reset` / CI) with "relation public.upgrades does not exist", because grants apply in
+-- timestamp order. (It previously "worked" only against the remote, where a stray dashboard
+-- stub happened to exist when this ran.)
 grant all on table
   public.profiles,
   public.wallet,
   public.wallet_credits,
   public.inventory,
-  public.upgrades,
   public.match_results,
   public.match_settlements
 to authenticated, service_role;
