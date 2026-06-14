@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Persistent Game Foundations
 status: executing
-stopped_at: Phase 11 (accounts-economy) implemented — all 5 plans authored, build green; 2 verifications pending on remote createUser fix
-last_updated: "2026-06-13"
-last_activity: 2026-06-13 -- Phase 11 executed (waves 1-4); migration pushed to remote; RLS-green + in-app verify blocked on auth.users createUser DB error
+stopped_at: **Phase 11 (accounts-economy) executed** — all 5 plans authored and committed (waves 1-4),
+last_updated: "2026-06-14T03:08:13.290Z"
+last_activity: 2026-06-14 -- Phase 12 planning complete
 progress:
   total_phases: 6
-  completed_phases: 2
-  total_plans: 16
-  completed_plans: 18
+  completed_phases: 3
+  total_plans: 20
+  completed_plans: 16
   percent: 50
 ---
 
@@ -27,8 +27,8 @@ See: .planning/PROJECT.md (updated 2026-06-12)
 
 Phase: 11 (accounts-economy) — ◆ IMPLEMENTED, verification pending
 Plan: 5 of 5 authored (11-01…11-05). 11-01/02/03 fully done; 11-04 (RLS GREEN) + 11-05 Task 4 (in-app verify) blocked on remote createUser DB error.
-Status: Migration pushed to remote Supabase (user "applied"). Build green (tsc + vite build). API seam + scene wiring complete; client unlock authority retired; username XSS-escaped.
-Last activity: 2026-06-13 -- Phase 11 executed (waves 1-4)
+Status: Ready to execute
+Last activity: 2026-06-14 -- Phase 12 planning complete
 
 Progress: [█████░░░░░] 50% (Phases 9 & 10 complete; Phase 11 implemented, verifying)
 
